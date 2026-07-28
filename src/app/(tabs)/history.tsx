@@ -29,9 +29,20 @@ export default function History() {
       return d;
     });
 
+  // The pixel grid starts on the first day the user logged anything —
+  // no empty pre-history cells.
+  const firstKey = totals.size > 0
+    ? [...totals.keys()].sort()[0]
+    : todayKey(new Date());
+  const [fy, fm, fd] = firstKey.split('-').map(Number);
+  const sinceStart = Math.min(
+    90,
+    Math.max(1, Math.floor((Date.now() - new Date(fy, fm - 1, fd).getTime()) / 86_400_000) + 1),
+  );
+
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: C.bg }}>
-      <ScrollView contentContainerStyle={{ padding: 20, gap: 14 }}>
+      <ScrollView contentContainerStyle={{ padding: 20, gap: 14, paddingBottom: 110 }}>
         <Text style={s.h1}>History</Text>
 
         {/* Last 7 days bars */}
@@ -56,7 +67,7 @@ export default function History() {
         <View style={card}>
           <Text style={s.cardTitle}>Days in pixels — tap a day</Text>
           <View style={s.grid}>
-            {days(28).map((d) => {
+            {days(sinceStart).map((d) => {
               const key = todayKey(d);
               const p = Math.min(1, (totals.get(key) ?? 0) / goal);
               return (

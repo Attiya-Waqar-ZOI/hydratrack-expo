@@ -51,7 +51,7 @@ export default function Home() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: C.bg }}>
-      <ScrollView contentContainerStyle={{ padding: 20, gap: 16, paddingBottom: 28 }}>
+      <ScrollView contentContainerStyle={{ padding: 20, gap: 16, paddingBottom: 110 }}>
         <View style={s.headerRow}>
           <View>
             <Text style={{ color: C.muted }}>{greeting}</Text>

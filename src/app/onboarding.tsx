@@ -102,7 +102,10 @@ export default function Onboarding() {
         <Text style={s.stepCount}>{step + 1}/{STEPS.length}</Text>
       </View>
 
-      <ScrollView contentContainerStyle={{ padding: 24, paddingTop: 8, gap: 14 }}>
+      <ScrollView
+        contentContainerStyle={{ padding: 24, paddingTop: 8, gap: 14 }}
+        keyboardShouldPersistTaps="handled"
+      >
         {step === 0 && (
           <>
             <View style={{ alignItems: 'center', marginBottom: 8 }}>
@@ -150,7 +153,8 @@ export default function Onboarding() {
             </View>
             <Stepper
               value={height} set={setHeight} min={120} max={220}
-              display={heightImp ? ftIn(height) : `${height} cm`}
+              step={heightImp ? 2.54 : 1}
+              display={heightImp ? ftIn(height) : `${Math.round(height)} cm`}
             />
             <View style={s.stepRow}>
               <Text style={s.label}>Weight</Text>
@@ -158,7 +162,8 @@ export default function Onboarding() {
             </View>
             <Stepper
               value={weight} set={setWeight} min={35} max={160}
-              display={weightImp ? `${Math.round(weight / 0.45359237)} lb` : `${weight} kg`}
+              step={weightImp ? 0.45359237 : 1}
+              display={weightImp ? `${Math.round(weight / 0.45359237)} lb` : `${Math.round(weight)} kg`}
             />
             <GlowCard selected grad={[C.mint, C.primary]}>
               <Text style={s.sub}>Your BMI</Text>
@@ -251,9 +256,6 @@ export default function Onboarding() {
                   <Text style={s.goalBtnTxt}>＋</Text>
                 </Pressable>
               </View>
-              <Text style={[s.cardDesc, { textAlign: 'center' }]}>
-                ml per day · ±100 or type exact · 500–6000
-              </Text>
               {customGoal != null && customGoal !== recommended && (
                 <Pressable onPress={() => { setCustomGoal(null); setGoalText(null); }}>
                   <Text style={{ color: C.mint, textAlign: 'center', marginTop: 10, fontWeight: '600' }}>
@@ -315,19 +317,55 @@ function GlowCard({
 }
 
 function Stepper({
-  label, value, set, min, max, unit, display,
+  label, value, set, min, max, unit, display, step = 1,
 }: {
   label?: string; value: number; set: (v: number) => void;
-  min: number; max: number; unit?: string; display?: string;
+  min: number; max: number; unit?: string; display?: string; step?: number;
 }) {
+  // The value is tap-to-type: buttons for fine-tuning, keyboard for jumps
+  // (nobody wants to tap + forty times to reach their age).
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState('');
   const shown = display ?? `${value}${unit ? ` ${unit}` : ''}`;
+
+  const commit = () => {
+    const n = parseInt(draft, 10);
+    if (!Number.isNaN(n)) set(Math.min(max, Math.max(min, n)));
+    setEditing(false);
+  };
+
+  // While typing, the first tap on − / ＋ commits the draft (the iOS number
+  // pad has no Done key, so this is the natural way out of edit mode).
+  const stepBy = (dir: 1 | -1) => {
+    if (editing) { commit(); return; }
+    set(Math.min(max, Math.max(min, +(value + dir * step).toFixed(2))));
+  };
+
   return (
     <View style={s.stepRow}>
       {label ? <Text style={s.label}>{label}</Text> : <View />}
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-        <RoundBtn label="−" onPress={() => set(Math.max(min, value - 1))} />
-        <Text style={s.stepVal}>{shown}</Text>
-        <RoundBtn label="＋" onPress={() => set(Math.min(max, value + 1))} />
+        <RoundBtn label="−" onPress={() => stepBy(-1)} />
+        {editing ? (
+          <TextInput
+            style={s.stepInput}
+            value={draft}
+            onChangeText={setDraft}
+            keyboardType="number-pad"
+            maxLength={3}
+            autoFocus
+            selectTextOnFocus
+            onBlur={commit}
+            onSubmitEditing={commit}
+          />
+        ) : (
+          <Pressable onPress={() => { setDraft(String(value)); setEditing(true); }}>
+            <Text style={[s.stepVal, { textDecorationLine: 'underline', textDecorationColor: C.muted }]}>
+              {shown}
+            </Text>
+          </Pressable>
+        )}
+        <RoundBtn label="＋" onPress={() => set(Math.min(max, +(value + step).toFixed(2)))} />
       </View>
     </View>
   );
@@ -410,6 +448,11 @@ const s = StyleSheet.create({
     alignItems: 'center', paddingVertical: 6,
   },
   stepVal: { color: C.text, fontWeight: '800', minWidth: 76, textAlign: 'center' },
+  stepInput: {
+    backgroundColor: C.surfaceAlt, color: C.text, borderRadius: 10,
+    minWidth: 76, textAlign: 'center', fontWeight: '800',
+    paddingVertical: 6, paddingHorizontal: 8,
+  },
   roundBtn: {
     width: 38, height: 38, borderRadius: 19, backgroundColor: C.surfaceAlt,
     alignItems: 'center', justifyContent: 'center',
