@@ -54,11 +54,12 @@ function Bubble({ cx, delay, duration, scale }: {
 }
 
 export function GoalGlass({
-  ml, fill, width = 72,
+  ml, fill, width = 72, ground = C.bg,
 }: {
   ml?: number;      // 1000..6000 → design's level mapping
   fill?: number;    // 0..1 direct fill (used on Home for progress)
   width?: number;
+  ground?: string;  // color of the surface the glass sits on
 }) {
   const scale = width / VW;
   const height = VH * scale;
@@ -74,6 +75,7 @@ export function GoalGlass({
   const level = useRef(new Animated.Value(targetY * scale)).current;
   const waveA = useRef(new Animated.Value(0)).current;
   const waveB = useRef(new Animated.Value(0)).current;
+  const bob = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     Animated.timing(level, {
@@ -87,20 +89,32 @@ export function GoalGlass({
       Animated.loop(Animated.timing(v, {
         toValue: 1, duration, easing: Easing.linear, useNativeDriver: NATIVE,
       }));
-    const a = drift(waveA, 2400); const b = drift(waveB, 3600);
-    a.start(); b.start();
-    return () => { a.stop(); b.stop(); };
+    const a = drift(waveA, 1600); const b = drift(waveB, 2600);
+    const c = Animated.loop(Animated.sequence([
+      Animated.timing(bob, { toValue: 1, duration: 1500, easing: Easing.inOut(Easing.sin), useNativeDriver: NATIVE }),
+      Animated.timing(bob, { toValue: 0, duration: 1500, easing: Easing.inOut(Easing.sin), useNativeDriver: NATIVE }),
+    ]));
+    a.start(); b.start(); c.start();
+    return () => { a.stop(); b.stop(); c.stop(); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const waveW = width * 2;
-  const waveH = 14 * scale;
+  const waveH = 18 * scale;
   const tallH = height + waveH;
 
   return (
     <View style={{ width, height, overflow: 'hidden' }}>
       {/* Water block: rises to the level, waves drift inside it */}
-      <Animated.View style={{ position: 'absolute', top: 0, left: 0, transform: [{ translateY: level }] }}>
+      <Animated.View
+        style={{
+          position: 'absolute', top: 0, left: 0,
+          transform: [
+            { translateY: level },
+            { translateY: bob.interpolate({ inputRange: [0, 1], outputRange: [0, -2.5 * scale] }) },
+          ],
+        }}
+      >
         <Animated.View
           style={{
             marginTop: -waveH / 2,
@@ -124,8 +138,9 @@ export function GoalGlass({
       </Animated.View>
 
       {/* Bubbles rising through the water */}
-      <Bubble cx={width * 0.38} delay={1200} duration={2800} scale={scale} />
-      <Bubble cx={width * 0.55} delay={2100} duration={3400} scale={scale} />
+      <Bubble cx={width * 0.34} delay={900} duration={2300} scale={scale} />
+      <Bubble cx={width * 0.52} delay={1700} duration={2900} scale={scale} />
+      <Bubble cx={width * 0.65} delay={2500} duration={2600} scale={scale} />
 
       {/* Highlight streak */}
       <View
@@ -140,7 +155,7 @@ export function GoalGlass({
       <Svg width={width} height={height} viewBox={`0 0 ${VW} ${VH}`} style={StyleSheet.absoluteFill}>
         <Path
           d={`M0 0 H${VW} V${VH} H0 Z ${GLASS} Z`}
-          fill={C.bg}
+          fill={ground}
           fillRule="evenodd"
         />
         <Path d={GLASS} fill="none" stroke={C.neutral600} strokeWidth={1.2} strokeLinejoin="round" />
