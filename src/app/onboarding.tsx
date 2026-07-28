@@ -40,12 +40,15 @@ export default function Onboarding() {
   const [age, setAge] = useState(28);
   const [gender, setGender] = useState<'male' | 'female'>('male');
   const [height, setHeight] = useState(175);
+  const [heightImp, setHeightImp] = useState(false);
   const [weight, setWeight] = useState(70);
+  const [weightImp, setWeightImp] = useState(false);
   const [activity, setActivity] = useState<ActivityLevel>('moderate');
   const [climate, setClimate] = useState<Climate>('moderate');
   const [detecting, setDetecting] = useState(false);
   const [detected, setDetected] = useState<string | null>(null);
   const [customGoal, setCustomGoal] = useState<number | null>(null);
+  const [goalText, setGoalText] = useState<string | null>(null);
 
   const bmi = useMemo(() => computeBmi(height, weight), [height, weight]);
   const recommended = useMemo(
@@ -109,7 +112,9 @@ export default function Onboarding() {
               >
                 <Text style={{ fontSize: 40 }}>💧</Text>
               </LinearGradient>
-              <Text style={s.brand}>HydraTrack</Text>
+              <View style={s.brandPill}>
+                <Text style={s.brand}>HydraTrack</Text>
+              </View>
               <Text style={s.tagline}>Precision hydration</Text>
             </View>
             <Text style={s.h1}>About you</Text>
@@ -139,8 +144,22 @@ export default function Onboarding() {
           <>
             <Text style={s.h1}>Body & BMI</Text>
             <Text style={s.sub}>Your goal is personalized from your body.</Text>
-            <Stepper label="Height" value={height} set={setHeight} min={120} max={220} unit="cm" />
-            <Stepper label="Weight" value={weight} set={setWeight} min={35} max={160} unit="kg" />
+            <View style={s.stepRow}>
+              <Text style={s.label}>Height</Text>
+              <SegPair a="cm" b="ft/in" imp={heightImp} onSel={setHeightImp} />
+            </View>
+            <Stepper
+              value={height} set={setHeight} min={120} max={220}
+              display={heightImp ? ftIn(height) : `${height} cm`}
+            />
+            <View style={s.stepRow}>
+              <Text style={s.label}>Weight</Text>
+              <SegPair a="kg" b="lb" imp={weightImp} onSel={setWeightImp} />
+            </View>
+            <Stepper
+              value={weight} set={setWeight} min={35} max={160}
+              display={weightImp ? `${Math.round(weight / 0.45359237)} lb` : `${weight} kg`}
+            />
             <GlowCard selected grad={[C.mint, C.primary]}>
               <Text style={s.sub}>Your BMI</Text>
               <Text style={s.big}>{bmi.toFixed(1)}</Text>
@@ -190,9 +209,12 @@ export default function Onboarding() {
                 {detecting ? 'Detecting…' : detected ?? 'Allow location & weather'}
               </Text>
               <Text style={s.cardDesc}>
-                {detected ? 'Tap to re-detect.' : 'Uses your location once per day. Skippable.'}
+                {detected ? 'Tap to re-detect.' : 'Uses your location once per day.'}
               </Text>
             </GlowCard>
+            <Pressable style={s.skip} onPress={() => setStep(step + 1)}>
+              <Text style={{ color: C.muted, fontWeight: '700' }}>Skip for now →</Text>
+            </Pressable>
           </>
         )}
 
@@ -203,11 +225,26 @@ export default function Onboarding() {
             <GlowCard selected grad={[C.mint, C.primary]}>
               <Text style={[s.big, { fontSize: 44, textAlign: 'center' }]}>{fmtVol(goal, false)}</Text>
               <View style={s.goalCtl}>
-                <RoundBtn label="−100" onPress={() => setCustomGoal(Math.max(500, goal - 100))} />
-                <RoundBtn label="+100" onPress={() => setCustomGoal(Math.min(6000, goal + 100))} />
+                <RoundBtn label="−100" onPress={() => { setCustomGoal(Math.max(500, goal - 100)); setGoalText(null); }} />
+                <RoundBtn label="+100" onPress={() => { setCustomGoal(Math.min(6000, goal + 100)); setGoalText(null); }} />
               </View>
+              <TextInput
+                style={s.goalInput}
+                value={goalText ?? String(goal)}
+                onChangeText={(t) => {
+                  setGoalText(t);
+                  const n = parseInt(t, 10);
+                  if (!Number.isNaN(n)) setCustomGoal(Math.min(6000, Math.max(500, n)));
+                }}
+                onEndEditing={() => setGoalText(null)}
+                keyboardType="number-pad"
+                maxLength={4}
+                placeholder="Type exact amount (ml)"
+                placeholderTextColor={C.muted}
+              />
+              <Text style={[s.cardDesc, { textAlign: 'center' }]}>ml per day · 500–6000</Text>
               {customGoal != null && customGoal !== recommended && (
-                <Pressable onPress={() => setCustomGoal(null)}>
+                <Pressable onPress={() => { setCustomGoal(null); setGoalText(null); }}>
                   <Text style={{ color: C.mint, textAlign: 'center', marginTop: 10, fontWeight: '600' }}>
                     Reset to recommended ({fmtVol(recommended, false)})
                   </Text>
@@ -267,21 +304,54 @@ function GlowCard({
 }
 
 function Stepper({
-  label, value, set, min, max, unit,
+  label, value, set, min, max, unit, display,
 }: {
-  label: string; value: number; set: (v: number) => void;
-  min: number; max: number; unit: string;
+  label?: string; value: number; set: (v: number) => void;
+  min: number; max: number; unit?: string; display?: string;
 }) {
+  const shown = display ?? `${value}${unit ? ` ${unit}` : ''}`;
   return (
     <View style={s.stepRow}>
-      <Text style={s.label}>{label}</Text>
+      {label ? <Text style={s.label}>{label}</Text> : <View />}
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
         <RoundBtn label="−" onPress={() => set(Math.max(min, value - 1))} />
-        <Text style={s.stepVal}>{value} {unit}</Text>
+        <Text style={s.stepVal}>{shown}</Text>
         <RoundBtn label="＋" onPress={() => set(Math.min(max, value + 1))} />
       </View>
     </View>
   );
+}
+
+/// Small metric/imperial two-way toggle.
+function SegPair({
+  a, b, imp, onSel,
+}: {
+  a: string; b: string; imp: boolean; onSel: (imp: boolean) => void;
+}) {
+  return (
+    <View style={{ flexDirection: 'row', gap: 6 }}>
+      {[false, true].map((v) => (
+        <Pressable
+          key={String(v)}
+          onPress={() => onSel(v)}
+          style={[s.seg, imp === v && { backgroundColor: C.primary }]}
+        >
+          <Text style={{ color: imp === v ? '#fff' : C.muted, fontWeight: '700', fontSize: 12 }}>
+            {v ? b : a}
+          </Text>
+        </Pressable>
+      ))}
+    </View>
+  );
+}
+
+/// 175cm -> 5' 9" (with inch rollover handled).
+function ftIn(cm: number): string {
+  const totalIn = cm / 2.54;
+  let ft = Math.floor(totalIn / 12);
+  let inch = Math.round(totalIn - ft * 12);
+  if (inch === 12) { ft += 1; inch = 0; }
+  return `${ft}' ${inch}"`;
 }
 
 function RoundBtn({ label, onPress }: { label: string; onPress: () => void }) {
@@ -311,7 +381,11 @@ const s = StyleSheet.create({
     width: 84, height: 84, borderRadius: 42,
     alignItems: 'center', justifyContent: 'center', marginBottom: 10,
   },
-  brand: { color: '#FFFFFF', fontSize: 26, fontWeight: '900', letterSpacing: 0.5 },
+  brandPill: {
+    backgroundColor: '#ECF1FF', borderRadius: 14,
+    paddingHorizontal: 16, paddingVertical: 6,
+  },
+  brand: { color: '#0D1220', fontSize: 26, fontWeight: '900', letterSpacing: 0.5 },
   tagline: { color: C.mint, fontSize: 12, fontWeight: '600', letterSpacing: 2 },
   h1: { color: C.text, fontSize: 26, fontWeight: '900' },
   sub: { color: C.muted, lineHeight: 20 },
@@ -328,6 +402,16 @@ const s = StyleSheet.create({
   roundBtn: {
     width: 38, height: 38, borderRadius: 19, backgroundColor: C.surfaceAlt,
     alignItems: 'center', justifyContent: 'center',
+  },
+  seg: {
+    backgroundColor: C.surfaceAlt, borderRadius: 10,
+    paddingHorizontal: 12, paddingVertical: 6,
+  },
+  skip: { alignItems: 'center', padding: 12 },
+  goalInput: {
+    backgroundColor: C.surfaceAlt, color: C.text, borderRadius: 12,
+    paddingHorizontal: 14, paddingVertical: 10, marginTop: 12,
+    fontWeight: '700', textAlign: 'center', fontSize: 16,
   },
   cardEmoji: { fontSize: 30, marginBottom: 6 },
   cardTitle: { color: '#FFFFFF', fontWeight: '800', fontSize: 16 },
