@@ -118,10 +118,12 @@ export default function You() {
 
         {/* Reset */}
         <View style={[s.row, { paddingBottom: 4 }]}>
-          <Pressable onPress={confirmReset} hitSlop={6}>
-            <Text style={{ fontFamily: F.heading, fontSize: 16, color: C.accent2Deep }}>Reset all data</Text>
+          <Pressable
+            onPress={confirmReset}
+            style={({ pressed }) => [s.dangerBtn, pressed && { backgroundColor: C.accent2200 }]}
+          >
+            <Text style={{ fontFamily: F.heading, fontSize: 15, color: C.accent2Deep }}>Reset all data</Text>
           </Pressable>
-          <Text style={[s.rowSub, { marginTop: 3 }]}>Clears every logged drink on this device.</Text>
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -235,4 +237,11 @@ const s = StyleSheet.create({
   stepBtn: { fontFamily: F.body, fontSize: 20, color: C.accentDeep, width: 24, textAlign: 'center' },
   count: { fontFamily: F.heading, fontSize: 19, minWidth: 22, textAlign: 'center', color: C.text },
   timeChip: { backgroundColor: C.neutral200, borderRadius: 999, paddingVertical: 5, paddingHorizontal: 12 },
+  dangerBtn: {
+    backgroundColor: C.accent2100,
+    borderWidth: 1, borderColor: C.accent2200,
+    borderRadius: 999, height: 44,
+    paddingHorizontal: 22, alignSelf: 'center',
+    alignItems: 'center', justifyContent: 'center',
+  },
 });

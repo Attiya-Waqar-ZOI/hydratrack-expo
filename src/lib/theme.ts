@@ -4,7 +4,7 @@
 // hairline dividers instead of boxed cards.
 export const C = {
   bg: '#fbfcfd',        // near-white paper, just off pure white
-  surface: '#eff2f5',   // card / quiet fill, soft light grey
+  surface: '#e9f3f9',   // card / quiet fill, fresh water tint
   text: '#201e1d',      // ink
   muted: '#605d5d',     // neutral-700, secondary text
   faint: '#9b9797',     // neutral-500, small labels and ticks
