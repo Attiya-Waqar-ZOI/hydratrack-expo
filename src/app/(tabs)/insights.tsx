@@ -35,14 +35,14 @@ export default function Insights() {
 
         {/* Stat tiles */}
         <View style={s.grid}>
-          <Tile emoji="💧" value={fmtVol(total, useOz)} label="Drank today" colors={['rgba(79,224,208,0.6)', 'rgba(79,124,255,0.6)']} />
-          <Tile emoji="🎯" value={fmtVol(goal, useOz)} label={app.env.totalMl > 0 ? `Goal · +${app.env.totalMl} weather` : 'Today’s goal'} colors={['rgba(79,124,255,0.6)', 'rgba(139,124,246,0.6)']} />
-          <Tile emoji="☕" value={`${caffeine} mg`} label="Caffeine" colors={['rgba(139,124,246,0.6)', 'rgba(236,90,141,0.6)']} />
-          <Tile emoji="🥤" value={`${app.todayLogs.length}`} label="Drinks logged" colors={['rgba(242,166,90,0.6)', 'rgba(232,132,90,0.6)']} />
+          <Tile emoji="💧" value={fmtVol(total, useOz)} label="Drank today" colors={['rgba(123,232,245,0.6)', 'rgba(37,199,224,0.6)']} />
+          <Tile emoji="🎯" value={fmtVol(goal, useOz)} label={app.env.totalMl > 0 ? `Goal · +${app.env.totalMl} weather` : 'Today’s goal'} colors={['rgba(37,199,224,0.6)', 'rgba(27,143,166,0.6)']} />
+          <Tile emoji="☕" value={`${caffeine} mg`} label="Caffeine" colors={['rgba(27,143,166,0.6)', 'rgba(37,199,224,0.6)']} />
+          <Tile emoji="🥤" value={`${app.todayLogs.length}`} label="Drinks logged" colors={['rgba(123,232,245,0.6)', 'rgba(27,143,166,0.6)']} />
         </View>
 
         {/* Pace bar */}
-        <GlowPanel glow colors={pace.onTrack ? ['rgba(61,220,151,0.6)', 'rgba(79,224,208,0.6)'] : ['rgba(242,166,90,0.65)', 'rgba(232,132,90,0.6)']}>
+        <GlowPanel glow colors={pace.onTrack ? ['rgba(61,220,151,0.6)', 'rgba(123,232,245,0.6)'] : ['rgba(242,166,90,0.65)', 'rgba(232,132,90,0.6)']}>
           <View style={s.rowBetween}>
             <Text style={s.cardTitle}>Today&apos;s pace</Text>
             <View style={[s.pill, { backgroundColor: pace.onTrack ? 'rgba(61,220,151,0.15)' : 'rgba(242,166,90,0.15)' }]}>
@@ -60,14 +60,14 @@ export default function Insights() {
         </GlowPanel>
 
         {/* Coach */}
-        <GlowPanel colors={['rgba(232,180,88,0.6)', 'rgba(242,166,90,0.5)']}>
-          <Text style={[s.cardTitle, { color: C.gold }]}>🧠 Coach</Text>
+        <GlowPanel colors={['rgba(37,199,224,0.6)', 'rgba(123,232,245,0.5)']}>
+          <Text style={[s.cardTitle, { color: C.mint }]}>🧠 Coach</Text>
           {plan && <Text style={s.sub}>{plan.rushed ? '⚡ ' : ''}{plan.message}</Text>}
           <Text style={[s.sub, { marginTop: 6 }]}>💡 {recommendation(total, goal, now.getHours(), 0)}</Text>
         </GlowPanel>
 
         {/* Today's drinks timeline */}
-        <GlowPanel colors={['rgba(79,124,255,0.5)', 'rgba(139,124,246,0.5)']}>
+        <GlowPanel colors={['rgba(37,199,224,0.5)', 'rgba(27,143,166,0.5)']}>
           <Text style={s.cardTitle}>Today&apos;s drinks</Text>
           {app.todayLogs.length === 0 && (
             <Text style={s.sub}>Nothing yet — the first sip sets the tone. 💧</Text>
@@ -122,7 +122,7 @@ const s = StyleSheet.create({
   fill: { height: 14, borderRadius: 8 },
   marker: {
     position: 'absolute', top: -3, width: 3, height: 20,
-    backgroundColor: C.gold, borderRadius: 2,
+    backgroundColor: C.text, borderRadius: 2,
   },
   legend: { color: C.muted, fontSize: 11, marginTop: 8 },
   logRow: {

@@ -111,8 +111,8 @@ export interface Beverage {
 }
 
 export const BEVERAGES: Beverage[] = [
-  { id: 'water', name: 'Water', factor: 1.0, caffeinePer100: 0, emoji: '💧', color: '#4F7CFF' },
-  { id: 'sparkling', name: 'Sparkling', factor: 1.0, caffeinePer100: 0, emoji: '🫧', color: '#4FE0D0' },
+  { id: 'water', name: 'Water', factor: 1.0, caffeinePer100: 0, emoji: '💧', color: '#25C7E0' },
+  { id: 'sparkling', name: 'Sparkling', factor: 1.0, caffeinePer100: 0, emoji: '🫧', color: '#7BE8F5' },
   { id: 'coconut', name: 'Coconut', factor: 1.1, caffeinePer100: 0, emoji: '🥥', color: '#9CCC65' },
   { id: 'sports', name: 'Sports', factor: 1.0, caffeinePer100: 0, emoji: '🏃', color: '#26C6DA' },
   { id: 'herbal', name: 'Herbal tea', factor: 1.0, caffeinePer100: 0, emoji: '🌿', color: '#66BB6A' },
@@ -122,7 +122,7 @@ export const BEVERAGES: Beverage[] = [
   { id: 'juice', name: 'Juice', factor: 0.85, caffeinePer100: 0, emoji: '🧃', color: '#FFB454' },
   { id: 'smoothie', name: 'Smoothie', factor: 0.85, caffeinePer100: 0, emoji: '🥤', color: '#EC7FA9' },
   { id: 'coffee', name: 'Coffee', factor: 0.8, caffeinePer100: 40, emoji: '☕', color: '#E8845A' },
-  { id: 'soda', name: 'Soda', factor: 0.7, caffeinePer100: 10, emoji: '🥫', color: '#8B7CF6' },
+  { id: 'soda', name: 'Soda', factor: 0.7, caffeinePer100: 10, emoji: '🥫', color: '#1B8FA6' },
   { id: 'energy', name: 'Energy', factor: 0.7, caffeinePer100: 32, emoji: '⚡', color: '#F06277' },
   { id: 'alcohol', name: 'Beer/Wine', factor: 0.5, caffeinePer100: 0, emoji: '🍺', color: '#D4A017' },
 ];

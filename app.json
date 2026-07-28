@@ -10,7 +10,7 @@
     "splash": {
       "image": "./assets/images/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#070B14"
+      "backgroundColor": "#0A0D10"
     },
     "ios": {
       "icon": "./assets/expo.icon"
@@ -33,7 +33,7 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#070B14",
+          "backgroundColor": "#0A0D10",
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 76
         }

@@ -34,10 +34,10 @@ export function WeatherCard() {
   };
 
   return (
-    <GlowPanel colors={['rgba(242,166,90,0.55)', 'rgba(232,132,90,0.45)']}>
+    <GlowPanel colors={['rgba(37,199,224,0.55)', 'rgba(27,143,166,0.45)']}>
       <View style={st.rowBetween}>
         <Text style={st.title}>🌡 Weather & climate</Text>
-        {boost > 0 && <Text style={{ color: C.gold, fontWeight: '800' }}>+{boost} ml</Text>}
+        {boost > 0 && <Text style={{ color: C.mint, fontWeight: '800' }}>+{boost} ml</Text>}
       </View>
       <Text style={st.sub}>
         {ctx?.place

@@ -59,7 +59,7 @@ export default function Home() {
           </View>
           <Pressable
             onPress={() => setShowNote(!showNote)}
-            style={[s.noteBtn, hasNote && { backgroundColor: 'rgba(79,124,255,0.18)' }]}
+            style={[s.noteBtn, hasNote && { backgroundColor: 'rgba(37,199,224,0.18)' }]}
             hitSlop={8}
           >
             <Text style={{ fontSize: 20 }}>{hasNote ? '📌' : '📝'}</Text>
@@ -69,7 +69,7 @@ export default function Home() {
         {showNote && <NoteEditor onDone={() => setShowNote(false)} />}
 
         {/* Hero: gradient progress ring in a glowing panel */}
-        <GlowPanel glow colors={['rgba(79,224,208,0.75)', 'rgba(79,124,255,0.75)']} style={{ alignItems: 'center', paddingVertical: 28 }}>
+        <GlowPanel glow colors={['rgba(123,232,245,0.75)', 'rgba(37,199,224,0.75)']} style={{ alignItems: 'center', paddingVertical: 28 }}>
           <Ring progress={progress} />
           <Text style={s.totals}>
             {fmtVol(total, useOz)} <Text style={{ color: C.muted }}>of {fmtVol(goal, useOz)}</Text>
@@ -80,7 +80,7 @@ export default function Home() {
         </GlowPanel>
 
         {/* Add drink */}
-        <GlowPanel colors={['rgba(79,124,255,0.45)', 'rgba(139,124,246,0.45)']}>
+        <GlowPanel colors={['rgba(37,199,224,0.45)', 'rgba(27,143,166,0.45)']}>
           <Text style={s.cardTitle}>Add a drink</Text>
           <View style={s.chips}>
             {QUICK.map((ml, i) => (
@@ -93,7 +93,7 @@ export default function Home() {
               </Pressable>
             ))}
             <Pressable
-              style={[s.chip, { borderColor: C.gold }, customOpen && { backgroundColor: C.primary }]}
+              style={[s.chip, { borderColor: 'rgba(123,232,245,0.7)' }, customOpen && { backgroundColor: C.primary }]}
               onPress={() => setCustomOpen(!customOpen)}
             >
               <Text style={[s.chipTxt, customOpen && { color: '#fff' }]}>✏️ Custom</Text>
@@ -130,13 +130,13 @@ export default function Home() {
   );
 }
 
-const CHIP_COLORS = ['rgba(79,224,208,0.6)', 'rgba(79,124,255,0.6)', 'rgba(139,124,246,0.6)', 'rgba(236,90,141,0.6)'];
+const CHIP_COLORS = ['rgba(123,232,245,0.6)', 'rgba(37,199,224,0.6)', 'rgba(27,143,166,0.6)', 'rgba(37,199,224,0.6)'];
 
 function NoteEditor({ onDone }: { onDone: () => void }) {
   const app = useApp();
   const [draft, setDraft] = useState(app.dayContext?.note ?? '');
   return (
-    <GlowPanel colors={['rgba(79,124,255,0.5)', 'rgba(139,124,246,0.5)']}>
+    <GlowPanel colors={['rgba(37,199,224,0.5)', 'rgba(27,143,166,0.5)']}>
       <Text style={s.cardTitle}>📝 Note for today</Text>
       <Text style={{ color: C.muted, fontSize: 12, marginBottom: 8 }}>
         Context you’ll want later — “traveling to Oman”, “fasting”, “long run”.

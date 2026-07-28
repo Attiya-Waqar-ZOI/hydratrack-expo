@@ -8,7 +8,7 @@ import { C } from './theme';
 
 export function GlowPanel({
   children,
-  colors = ['rgba(79,224,208,0.65)', 'rgba(79,124,255,0.65)'],
+  colors = ['rgba(123,232,245,0.65)', 'rgba(37,199,224,0.65)'],
   glow = false,
   style,
 }: {

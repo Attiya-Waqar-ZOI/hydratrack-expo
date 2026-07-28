@@ -79,7 +79,7 @@ export default function History() {
                     {
                       backgroundColor: p <= 0
                         ? C.surfaceAlt
-                        : `rgba(79,124,255,${0.25 + 0.75 * p})`,
+                        : `rgba(37,199,224,${0.25 + 0.75 * p})`,
                     },
                     selected === key && { borderWidth: 2, borderColor: C.mint },
                   ]}

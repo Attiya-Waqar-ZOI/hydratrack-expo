@@ -18,17 +18,17 @@ import { C } from '@/lib/theme';
 const STEPS = ['About you', 'Body & BMI', 'Activity', 'Climate', 'Weather', 'Your goal'];
 
 const ACTIVITY_CARDS: { id: ActivityLevel; emoji: string; label: string; desc: string; grad: [string, string] }[] = [
-  { id: 'sedentary', emoji: '🛋️', label: 'Sedentary', desc: 'Mostly sitting — desk work, little exercise.', grad: ['#8B7CF6', '#4F7CFF'] },
-  { id: 'light', emoji: '🚶', label: 'Lightly Active', desc: 'Walks, light chores 1–3 days a week.', grad: ['#4F7CFF', '#4FE0D0'] },
-  { id: 'moderate', emoji: '🏃', label: 'Moderately Active', desc: 'Exercise or sport 3–5 days a week.', grad: ['#4FE0D0', '#3DDC97'] },
-  { id: 'high', emoji: '🏋️', label: 'Very Active', desc: 'Hard training most days.', grad: ['#F2A65A', '#E8845A'] },
-  { id: 'athlete', emoji: '🏆', label: 'Athlete', desc: 'Intense daily training or physical job.', grad: ['#EC5A8D', '#F2A65A'] },
+  { id: 'sedentary', emoji: '🛋️', label: 'Sedentary', desc: 'Mostly sitting — desk work, little exercise.', grad: ['#1B8FA6', '#25C7E0'] },
+  { id: 'light', emoji: '🚶', label: 'Lightly Active', desc: 'Walks, light chores 1–3 days a week.', grad: ['#25C7E0', '#7BE8F5'] },
+  { id: 'moderate', emoji: '🏃', label: 'Moderately Active', desc: 'Exercise or sport 3–5 days a week.', grad: ['#7BE8F5', '#25C7E0'] },
+  { id: 'high', emoji: '🏋️', label: 'Very Active', desc: 'Hard training most days.', grad: ['#25C7E0', '#17A0B8'] },
+  { id: 'athlete', emoji: '🏆', label: 'Athlete', desc: 'Intense daily training or physical job.', grad: ['#7BE8F5', '#1B8FA6'] },
 ];
 
 const CLIMATE_CARDS: { id: Climate; emoji: string; label: string; desc: string; grad: [string, string] }[] = [
-  { id: 'cold', emoji: '❄️', label: 'Cold', desc: 'Cool most of the year — sweaters over sunscreen.', grad: ['#4F7CFF', '#4FE0D0'] },
-  { id: 'moderate', emoji: '🌤️', label: 'Moderate', desc: 'Four seasons, comfortable most days.', grad: ['#4FE0D0', '#3DDC97'] },
-  { id: 'hot', emoji: '🔥', label: 'Hot', desc: 'Heat and sun most of the year — you sweat daily.', grad: ['#F2A65A', '#F06277'] },
+  { id: 'cold', emoji: '❄️', label: 'Cold', desc: 'Cool most of the year — sweaters over sunscreen.', grad: ['#25C7E0', '#7BE8F5'] },
+  { id: 'moderate', emoji: '🌤️', label: 'Moderate', desc: 'Four seasons, comfortable most days.', grad: ['#7BE8F5', '#25C7E0'] },
+  { id: 'hot', emoji: '🔥', label: 'Hot', desc: 'Heat and sun most of the year — you sweat daily.', grad: ['#25C7E0', '#1B8FA6'] },
 ];
 
 export default function Onboarding() {
@@ -133,7 +133,7 @@ export default function Onboarding() {
               {(['male', 'female'] as const).map((g) => (
                 <GlowCard
                   key={g} flex selected={gender === g} onPress={() => setGender(g)}
-                  grad={g === 'male' ? ['#4F7CFF', '#4FE0D0'] : ['#EC5A8D', '#8B7CF6']}
+                  grad={g === 'male' ? ['#25C7E0', '#7BE8F5'] : ['#EC5A8D', '#1B8FA6']}
                 >
                   <Text style={s.cardEmoji}>{g === 'male' ? '👨' : '👩'}</Text>
                   <Text style={s.cardTitle}>{g === 'male' ? 'Male' : 'Female'}</Text>
@@ -208,7 +208,7 @@ export default function Onboarding() {
               Optional: allow location so your goal adapts automatically to heat,
               altitude and dry air — and travel days get flagged in your history.
             </Text>
-            <GlowCard selected grad={['#F2A65A', '#E8845A']} onPress={detecting ? undefined : detect}>
+            <GlowCard selected grad={['#25C7E0', '#17A0B8']} onPress={detecting ? undefined : detect}>
               <Text style={s.cardEmoji}>📍</Text>
               <Text style={s.cardTitle}>
                 {detecting ? 'Detecting…' : detected ?? 'Allow location & weather'}
@@ -431,7 +431,7 @@ const s = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center', marginBottom: 10,
   },
   brandPill: {
-    backgroundColor: '#ECF1FF', borderRadius: 14,
+    backgroundColor: '#F1F5F7', borderRadius: 14,
     paddingHorizontal: 16, paddingVertical: 6,
   },
   brand: { color: '#0D1220', fontSize: 26, fontWeight: '900', letterSpacing: 0.5 },

@@ -49,7 +49,7 @@ export default function You() {
         <Text style={s.h1}>You</Text>
 
         {/* Identity */}
-        <GlowPanel glow colors={['rgba(79,224,208,0.7)', 'rgba(139,124,246,0.7)']}>
+        <GlowPanel glow colors={['rgba(123,232,245,0.7)', 'rgba(27,143,166,0.7)']}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
             <View style={s.avatar}>
               <Text style={{ fontSize: 26 }}>{p.gender === 'male' ? '👨' : '👩'}</Text>
@@ -67,7 +67,7 @@ export default function You() {
         {/* Metrics */}
         <View style={{ flexDirection: 'row', gap: 12 }}>
           <View style={{ flex: 1 }}>
-            <GlowPanel colors={['rgba(61,220,151,0.6)', 'rgba(79,224,208,0.6)']}>
+            <GlowPanel colors={['rgba(61,220,151,0.6)', 'rgba(123,232,245,0.6)']}>
               <Text style={s.sub}>🫀 BMI</Text>
               <Text style={s.metric}>{p.bmi.toFixed(1)}</Text>
               <Text style={{ color: C.success, fontWeight: '700' }}>
@@ -76,7 +76,7 @@ export default function You() {
             </GlowPanel>
           </View>
           <View style={{ flex: 1 }}>
-            <GlowPanel colors={['rgba(79,124,255,0.6)', 'rgba(139,124,246,0.6)']}>
+            <GlowPanel colors={['rgba(37,199,224,0.6)', 'rgba(27,143,166,0.6)']}>
               <Text style={s.sub}>🎯 Daily goal</Text>
               <Text style={s.metric}>{fmtVol(p.dailyGoalMl, useOz)}</Text>
               <Text style={{ color: C.primary, fontWeight: '700' }}>
@@ -87,7 +87,7 @@ export default function You() {
         </View>
 
         {/* Goal */}
-        <GlowPanel colors={['rgba(79,124,255,0.55)', 'rgba(79,224,208,0.55)']}>
+        <GlowPanel colors={['rgba(37,199,224,0.55)', 'rgba(123,232,245,0.55)']}>
           <Text style={s.cardTitle}>🎯 Daily goal</Text>
           <View style={s.row}>
             <Seg label="Auto" on={!p.useCustomGoal} onPress={() => setGoalMode(false)} />
@@ -108,7 +108,7 @@ export default function You() {
         <NotificationSettings />
 
         {/* Units */}
-        <GlowPanel colors={['rgba(242,166,90,0.55)', 'rgba(232,180,88,0.55)']}>
+        <GlowPanel colors={['rgba(37,199,224,0.55)', 'rgba(27,143,166,0.55)']}>
           <Text style={s.cardTitle}>📏 Volume unit</Text>
           <View style={s.row}>
             <Seg label="ml" on={!useOz} onPress={() => setUnit('ml')} />
@@ -116,7 +116,7 @@ export default function You() {
           </View>
         </GlowPanel>
 
-        <GlowPanel colors={['rgba(240,98,119,0.55)', 'rgba(236,90,141,0.45)']}>
+        <GlowPanel colors={['rgba(240,98,119,0.55)', 'rgba(240,98,119,0.35)']}>
           <Pressable onPress={confirmReset}>
             <Text style={{ color: C.danger, fontWeight: '800' }}>🗑 Reset all data</Text>
           </Pressable>
@@ -149,7 +149,7 @@ function NotificationSettings() {
   };
 
   return (
-    <GlowPanel colors={['rgba(139,124,246,0.6)', 'rgba(236,90,141,0.5)']}>
+    <GlowPanel colors={['rgba(27,143,166,0.6)', 'rgba(37,199,224,0.5)']}>
       <Text style={s.cardTitle}>🔔 Reminders</Text>
       <View style={s.row}>
         <Seg label="Off" on={!on} onPress={() => save(false, perDay)} />
