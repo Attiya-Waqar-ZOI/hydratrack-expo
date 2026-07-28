@@ -1,6 +1,6 @@
-// Home ("Today") — port of the design: greeting + name, big percent beside
-// the measuring cylinder, bordered quick-add buttons, a one-line weather
-// note, and the last three drinks.
+// Home ("Today") — soft-card layout: greeting headline on the page, then
+// each section in its own rounded surface card so the structure reads at
+// a glance. Hero pairs the big percent with the animated water glass.
 import { router } from 'expo-router';
 import React from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -8,10 +8,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useApp } from '@/lib/app-state';
 import { AppHeader, LogRow } from '@/lib/chrome';
-import { Cylinder } from '@/lib/cylinder';
 import { beverageById, fmtVol } from '@/lib/engines';
+import { GoalGlass } from '@/lib/glass';
 import { showToast } from '@/lib/toast';
-import { C, F, T } from '@/lib/theme';
+import { C, F, R, T } from '@/lib/theme';
 
 const QUICK = [150, 250, 350, 500];
 
@@ -23,6 +23,7 @@ export default function Home() {
   const useOz = p.unit === 'oz';
   const goal = app.effectiveGoal;
   const total = app.todayTotal;
+  const progress = goal > 0 ? Math.min(1, total / goal) : 0;
   const remaining = Math.max(0, goal - total);
   const hour = new Date().getHours();
   const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
@@ -54,33 +55,36 @@ export default function Home() {
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: C.bg }}>
       <AppHeader />
-      <ScrollView contentContainerStyle={{ paddingHorizontal: 26, paddingTop: 22, paddingBottom: 24, gap: 26 }}>
-        <View>
+      <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 18, paddingBottom: 24, gap: 14 }}>
+        {/* Greeting lives on the page itself */}
+        <View style={{ paddingHorizontal: 6, marginBottom: 4 }}>
           <Text style={[T.body, { fontSize: 15 }]}>{greeting}</Text>
-          <Text style={[T.h1, { fontSize: 40, lineHeight: 44, letterSpacing: -1.3, marginTop: 3 }]}>{p.name}</Text>
+          <Text style={[T.h1, { fontSize: 38, lineHeight: 42, letterSpacing: -1.2, marginTop: 2 }]}>{p.name}</Text>
         </View>
 
-        {/* Hero: figure + measuring cylinder */}
-        <View style={s.hero}>
-          <View>
-            <Text style={s.pct}>{Math.round((goal > 0 ? Math.min(1, total / goal) : 0) * 100)}%</Text>
-            <Text style={s.totals}>{fmtVol(total, useOz)} of {fmtVol(goal, useOz)}</Text>
-            <Text style={[T.body, { fontSize: 15, marginTop: 4 }]}>
-              {remaining > 0 ? `${fmtVol(remaining, useOz)} to go` : 'Goal met. Nicely done.'}
-            </Text>
+        {/* Hero card: figure + water glass */}
+        <View style={s.card}>
+          <View style={s.heroRow}>
+            <View style={{ flex: 1 }}>
+              <Text style={s.pct}>{Math.round(progress * 100)}%</Text>
+              <Text style={s.totals}>{fmtVol(total, useOz)} of {fmtVol(goal, useOz)}</Text>
+              <Text style={[T.body, { fontSize: 14.5, marginTop: 3 }]}>
+                {remaining > 0 ? `${fmtVol(remaining, useOz)} to go` : 'Goal met. Nicely done.'}
+              </Text>
+            </View>
+            <GoalGlass fill={progress} width={104} ground={C.surface} />
           </View>
-          <Cylinder goalMl={goal} totalMl={total} />
         </View>
 
-        {/* Quick add */}
-        <View>
+        {/* Quick add card */}
+        <View style={s.card}>
           <Text style={s.section}>Log a glass</Text>
           <View style={s.quickRow}>
             {QUICK.map((ml) => (
               <Pressable
                 key={ml}
                 onPress={() => log(ml)}
-                style={({ pressed }) => [s.quickBtn, pressed && { backgroundColor: C.neutral200 }]}
+                style={({ pressed }) => [s.quickBtn, pressed && { backgroundColor: C.accent100 }]}
               >
                 <Text style={s.quickTxt}>{fmtVol(ml, useOz)}</Text>
               </Pressable>
@@ -91,22 +95,22 @@ export default function Home() {
           </View>
         </View>
 
-        {/* Weather */}
-        <View>
-          <Text style={[s.section, { marginBottom: 4 }]}>Today&apos;s weather</Text>
-          <Text style={[T.body, { fontSize: 15, maxWidth: 320 }]}>{weatherLine}</Text>
+        {/* Weather card */}
+        <View style={s.card}>
+          <Text style={[s.section, { marginBottom: 6 }]}>Today&apos;s weather</Text>
+          <Text style={[T.body, { fontSize: 14.5, lineHeight: 21 }]}>{weatherLine}</Text>
           {!ctx?.place && (
-            <Pressable onPress={() => app.detectEnvironment().catch(() => {})} style={{ marginTop: 6 }} hitSlop={6}>
+            <Pressable onPress={() => app.detectEnvironment().catch(() => {})} style={{ marginTop: 8 }} hitSlop={6}>
               <Text style={s.ghostTxt}>Use my location</Text>
             </Pressable>
           )}
         </View>
 
-        {/* Last drinks */}
-        <View>
-          <Text style={s.section}>Last drinks</Text>
+        {/* Last drinks card */}
+        <View style={s.card}>
+          <Text style={[s.section, { marginBottom: 4 }]}>Last drinks</Text>
           {recent.length === 0 && (
-            <Text style={[T.body, { fontSize: 15 }]}>Nothing logged yet today.</Text>
+            <Text style={[T.body, { fontSize: 14.5, marginTop: 4 }]}>Nothing logged yet today.</Text>
           )}
           {recent.map((l) => {
             const t = new Date(l.loggedAt);
@@ -126,19 +130,21 @@ export default function Home() {
 }
 
 const s = StyleSheet.create({
-  hero: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    gap: 22, paddingTop: 4, paddingHorizontal: 4, marginBottom: -8,
+  card: {
+    backgroundColor: C.surface,
+    borderRadius: R.lg,
+    paddingHorizontal: 18, paddingVertical: 16,
   },
-  pct: { fontFamily: F.heading, fontSize: 62, lineHeight: 66, letterSpacing: -2.4, color: C.text },
-  totals: { fontFamily: F.heading, fontSize: 19, color: C.text, marginTop: 14 },
-  section: { fontFamily: F.heading, fontSize: 19, color: C.text, marginBottom: 12 },
-  quickRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, alignItems: 'center' },
+  heroRow: { flexDirection: 'row', alignItems: 'center', gap: 18 },
+  pct: { fontFamily: F.heading, fontSize: 54, lineHeight: 58, letterSpacing: -2, color: C.text },
+  totals: { fontFamily: F.heading, fontSize: 18, color: C.text, marginTop: 8 },
+  section: { fontFamily: F.heading, fontSize: 18, letterSpacing: -0.2, color: C.text, marginBottom: 12 },
+  quickRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 9, alignItems: 'center' },
   quickBtn: {
-    borderWidth: 1, borderColor: C.divider, borderRadius: 2,
-    paddingVertical: 9, paddingHorizontal: 15,
+    backgroundColor: C.bg, borderRadius: R.md,
+    paddingVertical: 10, paddingHorizontal: 16,
   },
-  quickTxt: { fontFamily: F.heading, fontSize: 15, color: C.text },
-  ghost: { paddingVertical: 9, paddingHorizontal: 4 },
-  ghostTxt: { fontFamily: F.heading, fontSize: 15, color: C.accentDeep },
+  quickTxt: { fontFamily: F.heading, fontSize: 14.5, color: C.text },
+  ghost: { paddingVertical: 10, paddingHorizontal: 4 },
+  ghostTxt: { fontFamily: F.heading, fontSize: 14.5, color: C.accentDeep },
 });
