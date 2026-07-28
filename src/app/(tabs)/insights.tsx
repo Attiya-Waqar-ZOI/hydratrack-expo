@@ -1,15 +1,18 @@
 // Insights ("Coach") — port of the design: a spoken pace line under the
 // headline, the pace bar with an ink target marker, one concrete next
 // action, and the day's drink list.
-import React from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import React, { useEffect, useRef } from 'react';
+import { Animated, Easing, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import Svg, { Defs, LinearGradient, Path, Stop } from 'react-native-svg';
 
 import { useApp } from '@/lib/app-state';
 import { AppHeader, LogRow } from '@/lib/chrome';
 import { caffeineForDay, store } from '@/lib/db';
 import { beverageById, fmtVol, hydrationPace, todayKey } from '@/lib/engines';
 import { C, F, T } from '@/lib/theme';
+
+const NATIVE = Platform.OS !== 'web';
 
 export default function Insights() {
   const app = useApp();
@@ -84,7 +87,9 @@ export default function Insights() {
           <Text style={s.paceState}>{pace.onTrack ? 'On pace' : 'Behind'}</Text>
           <View style={s.track}>
             <View style={[s.fill, { width: `${pct * 100}%` }]} />
-            <View style={[s.marker, { left: `${expPct * 100}%` }]} />
+            <View style={[s.marker, { left: `${expPct * 100}%` }]}>
+              <GoalStar />
+            </View>
           </View>
           <View style={s.scaleRow}>
             <Text style={s.scaleTxt}>{fmtVol(total, useOz)} so far</Text>
@@ -157,6 +162,49 @@ export default function Insights() {
   );
 }
 
+/// The pace target: a big golden star that breathes gently.
+function GoalStar() {
+  const pulse = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    const loop = Animated.loop(Animated.sequence([
+      Animated.timing(pulse, { toValue: 1, duration: 1100, easing: Easing.inOut(Easing.sin), useNativeDriver: NATIVE }),
+      Animated.timing(pulse, { toValue: 0, duration: 1100, easing: Easing.inOut(Easing.sin), useNativeDriver: NATIVE }),
+    ]));
+    loop.start();
+    return () => loop.stop();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  return (
+    <Animated.View
+      style={{
+        transform: [
+          { scale: pulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.14] }) },
+          { rotate: pulse.interpolate({ inputRange: [0, 1], outputRange: ['-6deg', '6deg'] }) },
+        ],
+        shadowColor: '#E8B04B', shadowOpacity: 0.55, shadowRadius: 7,
+        shadowOffset: { width: 0, height: 2 }, elevation: 4,
+      }}
+    >
+      <Svg width={32} height={32} viewBox="0 0 24 24">
+        <Defs>
+          <LinearGradient id="starGold" x1="0" y1="0" x2="0" y2="1">
+            <Stop offset="0" stopColor="#FFD97A" />
+            <Stop offset="0.55" stopColor="#F0B34A" />
+            <Stop offset="1" stopColor="#D18F22" />
+          </LinearGradient>
+        </Defs>
+        <Path
+          d="M12 2l2.9 6.2 6.6.8-4.9 4.6 1.3 6.6L12 17l-5.9 3.2 1.3-6.6L2.5 9l6.6-.8z"
+          fill="url(#starGold)"
+          stroke="#A87716"
+          strokeWidth={1}
+          strokeLinejoin="round"
+        />
+      </Svg>
+    </Animated.View>
+  );
+}
+
 /// One-line pattern metric: label, thin bar, serif value.
 function MetricBar({ label, frac, value, warn = false }: {
   label: string; frac: number; value: string; warn?: boolean;
@@ -179,9 +227,9 @@ function MetricBar({ label, frac, value, warn = false }: {
 const s = StyleSheet.create({
   ruled: { borderTopWidth: 1, borderTopColor: C.divider, paddingTop: 22 },
   paceState: { fontFamily: F.heading, fontSize: 15, color: C.text, marginBottom: 9 },
-  track: { height: 10, backgroundColor: C.neutral200, overflow: 'visible' },
-  fill: { height: 10, backgroundColor: C.accent },
-  marker: { position: 'absolute', top: -5, width: 2, height: 20, backgroundColor: C.text },
+  track: { height: 12, borderRadius: 999, backgroundColor: C.neutral200, overflow: 'visible' },
+  fill: { height: 12, borderRadius: 999, backgroundColor: C.accent },
+  marker: { position: 'absolute', top: -10, marginLeft: -16 },
   scaleRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 9 },
   scaleTxt: { fontFamily: F.body, fontSize: 13.5, color: C.muted },
   section: { fontFamily: F.heading, fontSize: 21, letterSpacing: -0.3, color: C.text, marginBottom: 4 },
@@ -190,7 +238,7 @@ const s = StyleSheet.create({
   figNote: { fontFamily: F.body, fontSize: 12.5, color: C.faint, marginTop: 1 },
   metricRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   metricLabel: { fontFamily: F.body, fontSize: 13.5, color: C.muted, width: 104 },
-  metricTrack: { flex: 1, height: 6, backgroundColor: C.neutral200 },
-  metricFill: { height: 6, backgroundColor: C.accent },
+  metricTrack: { flex: 1, height: 8, borderRadius: 999, backgroundColor: C.neutral200 },
+  metricFill: { height: 8, borderRadius: 999, backgroundColor: C.accent },
   metricVal: { fontFamily: F.heading, fontSize: 14, color: C.text, minWidth: 52, textAlign: 'right' },
 });
