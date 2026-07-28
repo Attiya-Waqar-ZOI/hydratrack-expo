@@ -89,7 +89,11 @@ export default function Home() {
                 <Text style={s.quickTxt}>{fmtVol(ml, useOz)}</Text>
               </Pressable>
             ))}
-            <Pressable onPress={() => router.push('/add')} style={s.ghost} hitSlop={6}>
+            <Pressable
+              onPress={() => router.push('/add')}
+              style={({ pressed }) => [s.otherBtn, pressed && { backgroundColor: C.accent200 }]}
+              hitSlop={6}
+            >
               <Text style={s.ghostTxt}>Other drink</Text>
             </Pressable>
           </View>
@@ -146,5 +150,9 @@ const s = StyleSheet.create({
   },
   quickTxt: { fontFamily: F.heading, fontSize: 14.5, color: C.text },
   ghost: { paddingVertical: 10, paddingHorizontal: 4 },
+  otherBtn: {
+    backgroundColor: C.accent100, borderRadius: R.md,
+    paddingVertical: 10, paddingHorizontal: 16,
+  },
   ghostTxt: { fontFamily: F.heading, fontSize: 14.5, color: C.accentDeep },
 });

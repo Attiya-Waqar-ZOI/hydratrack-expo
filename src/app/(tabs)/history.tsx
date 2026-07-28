@@ -46,7 +46,7 @@ export default function History() {
   const lead = (new Date(now.getFullYear(), now.getMonth(), 1).getDay() + 6) % 7;
 
   const tierFill = (p: number, future: boolean) => {
-    if (future || p <= 0) return C.neutral200;
+    if (future || p <= 0) return C.bg;
     if (p >= 0.95) return C.accent500;
     if (p >= 0.75) return C.accent300;
     if (p >= 0.5) return C.accent200;
@@ -56,8 +56,8 @@ export default function History() {
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: C.bg }}>
       <AppHeader />
-      <ScrollView contentContainerStyle={{ paddingHorizontal: 26, paddingTop: 22, paddingBottom: 24, gap: 30 }}>
-        <View>
+      <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 18, paddingBottom: 24, gap: 14 }}>
+        <View style={{ paddingHorizontal: 6, marginBottom: 4 }}>
           <Text style={T.h1}>History</Text>
           <Text style={[T.body, { fontSize: 16, marginTop: 8, maxWidth: 300 }]}>
             {hit} of the last seven days met your goal. Tap a bar to see that day.
@@ -65,7 +65,7 @@ export default function History() {
         </View>
 
         {/* Week bars */}
-        <View style={{ paddingTop: 22 }}>
+        <View style={s.card}>
           <View style={s.chart}>
             {/* Dashed goal line */}
             <View style={[s.goalDash, { bottom: LABEL_ZONE + BAR_MAX - 1 }]} pointerEvents="none">
@@ -100,7 +100,7 @@ export default function History() {
         </View>
 
         {/* Month grid */}
-        <View>
+        <View style={s.card}>
           <Text style={s.section}>{MONTHS[now.getMonth()]}</Text>
           <View style={s.dowRow}>
             {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((l, i) => (
@@ -131,7 +131,7 @@ export default function History() {
           <View style={s.legendRow}>
             <Text style={s.legendTxt}>none</Text>
             <View style={{ flexDirection: 'row', gap: 3 }}>
-              {[C.neutral200, C.accent100, C.accent200, C.accent300, C.accent500].map((c, i) => (
+              {[C.bg, C.accent100, C.accent200, C.accent300, C.accent500].map((c, i) => (
                 <View key={i} style={{ width: 14, height: 14, backgroundColor: c }} />
               ))}
             </View>
@@ -139,7 +139,9 @@ export default function History() {
           </View>
         </View>
 
-        <DayJournal dayKey={selected} useOz={!!useOz} />
+        <View style={s.card}>
+          <DayJournal dayKey={selected} useOz={!!useOz} />
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -198,18 +200,22 @@ function DayJournal({ dayKey, useOz }: { dayKey: string; useOz: boolean }) {
 }
 
 const s = StyleSheet.create({
+  card: {
+    backgroundColor: C.surface, borderRadius: 18,
+    paddingHorizontal: 18, paddingVertical: 16,
+  },
   chart: { flexDirection: 'row', alignItems: 'flex-end', gap: 9, height: 132, position: 'relative' },
   goalDash: { position: 'absolute', left: 0, right: 0, height: 2 },
   goalTag: {
     position: 'absolute', right: 0, top: -8,
     fontFamily: F.body, fontSize: 11.5, color: C.muted,
-    backgroundColor: C.bg, paddingHorizontal: 4,
+    backgroundColor: C.surface, paddingHorizontal: 4,
   },
   barCol: { flex: 1, alignItems: 'center', justifyContent: 'flex-end', height: '100%' },
   barPct: { fontFamily: F.heading, fontSize: 12.5, color: C.text, marginBottom: 5 },
   baseline: { height: 1, width: '100%', backgroundColor: C.text },
   barDay: { marginTop: 7, fontFamily: F.body, fontSize: 13.5, color: C.muted },
-  section: { fontFamily: F.heading, fontSize: 21, letterSpacing: -0.3, color: C.text, marginBottom: 10 },
+  section: { fontFamily: F.heading, fontSize: 18, letterSpacing: -0.2, color: C.text, marginBottom: 10 },
   dowRow: { flexDirection: 'row', marginBottom: 6 },
   dow: { width: '14.28%', textAlign: 'center', fontFamily: F.body, fontSize: 11, color: C.faint },
   monthGrid: { flexDirection: 'row', flexWrap: 'wrap' },

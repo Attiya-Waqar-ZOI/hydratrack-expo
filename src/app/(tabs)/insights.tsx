@@ -76,14 +76,14 @@ export default function Insights() {
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: C.bg }}>
       <AppHeader />
-      <ScrollView contentContainerStyle={{ paddingHorizontal: 26, paddingTop: 22, paddingBottom: 24, gap: 22 }}>
-        <View>
+      <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 18, paddingBottom: 24, gap: 14 }}>
+        <View style={{ paddingHorizontal: 6, marginBottom: 4 }}>
           <Text style={T.h1}>Coach</Text>
           <Text style={[T.body, { fontSize: 16, marginTop: 8, maxWidth: 300 }]}>{paceLine}</Text>
         </View>
 
         {/* Pace bar */}
-        <View style={s.ruled}>
+        <View style={s.card}>
           <Text style={s.paceState}>{pace.onTrack ? 'On pace' : 'Behind'}</Text>
           <View style={s.track}>
             <View style={[s.fill, { width: `${pct * 100}%` }]} />
@@ -98,13 +98,13 @@ export default function Insights() {
         </View>
 
         {/* Next action */}
-        <View style={s.ruled}>
+        <View style={s.card}>
           <Text style={s.section}>Do this next</Text>
           <Text style={[T.body, { fontSize: 16, maxWidth: 320 }]}>{nextAction}</Text>
         </View>
 
         {/* This week */}
-        <View style={s.ruled}>
+        <View style={s.card}>
           <Text style={[s.section, { marginBottom: 14 }]}>This week</Text>
           <View style={s.figRow}>
             <View style={{ flex: 1 }}>
@@ -142,7 +142,7 @@ export default function Insights() {
         </View>
 
         {/* Today's drinks */}
-        <View style={s.ruled}>
+        <View style={s.card}>
           <Text style={[s.section, { marginBottom: 10 }]}>Today&apos;s drinks</Text>
           {rows.length === 0 && <Text style={[T.body, { fontSize: 15 }]}>Nothing logged yet today.</Text>}
           {rows.map((l) => {
@@ -225,20 +225,23 @@ function MetricBar({ label, frac, value, warn = false }: {
 }
 
 const s = StyleSheet.create({
-  ruled: { borderTopWidth: 1, borderTopColor: C.divider, paddingTop: 22 },
+  card: {
+    backgroundColor: C.surface, borderRadius: 18,
+    paddingHorizontal: 18, paddingVertical: 16,
+  },
   paceState: { fontFamily: F.heading, fontSize: 15, color: C.text, marginBottom: 9 },
-  track: { height: 12, borderRadius: 999, backgroundColor: C.neutral200, overflow: 'visible' },
+  track: { height: 12, borderRadius: 999, backgroundColor: C.bg, overflow: 'visible' },
   fill: { height: 12, borderRadius: 999, backgroundColor: C.accent },
   marker: { position: 'absolute', top: -10, marginLeft: -16 },
   scaleRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 9 },
   scaleTxt: { fontFamily: F.body, fontSize: 13.5, color: C.muted },
-  section: { fontFamily: F.heading, fontSize: 21, letterSpacing: -0.3, color: C.text, marginBottom: 4 },
+  section: { fontFamily: F.heading, fontSize: 18, letterSpacing: -0.2, color: C.text, marginBottom: 4 },
   figRow: { flexDirection: 'row', gap: 16 },
   fig: { fontFamily: F.heading, fontSize: 26, letterSpacing: -0.5, color: C.text, marginTop: 3 },
   figNote: { fontFamily: F.body, fontSize: 12.5, color: C.faint, marginTop: 1 },
   metricRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   metricLabel: { fontFamily: F.body, fontSize: 13.5, color: C.muted, width: 104 },
-  metricTrack: { flex: 1, height: 8, borderRadius: 999, backgroundColor: C.neutral200 },
+  metricTrack: { flex: 1, height: 8, borderRadius: 999, backgroundColor: C.bg },
   metricFill: { height: 8, borderRadius: 999, backgroundColor: C.accent },
   metricVal: { fontFamily: F.heading, fontSize: 14, color: C.text, minWidth: 52, textAlign: 'right' },
 });
