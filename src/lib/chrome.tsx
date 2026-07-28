@@ -3,6 +3,7 @@
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
+import { useApp } from './app-state';
 import { Droplet } from './logo';
 import { C, F } from './theme';
 
@@ -37,13 +38,24 @@ export function LogRow({ name, time, amount }: {
 }
 
 export function AppHeader() {
+  const app = useApp();
+  const goal = app.effectiveGoal;
+  const pct = app.profile && goal > 0
+    ? Math.round(Math.min(1, app.todayTotal / goal) * 100)
+    : null;
   return (
     <View>
       <View style={st.row}>
-        <Droplet />
+        <Droplet width={22} />
         <Text style={st.brand}>HydraTrack</Text>
+        {pct != null && (
+          <View style={st.chip}>
+            <Text style={st.chipTxt}>{pct}%</Text>
+          </View>
+        )}
       </View>
-      <View style={st.rule} />
+      {/* Small rounded accent tick under the wordmark, nothing heavier */}
+      <View style={st.accentTick} />
     </View>
   );
 }
@@ -53,8 +65,16 @@ const st = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: 9,
     paddingHorizontal: 26, paddingTop: 2, paddingBottom: 12,
   },
-  rule: { height: 1, backgroundColor: C.divider, marginHorizontal: 26 },
-  brand: { fontFamily: F.heading, fontSize: 17, letterSpacing: -0.2, color: C.text },
+  brand: { fontFamily: F.heading, fontSize: 19, letterSpacing: -0.3, color: C.text },
+  chip: {
+    marginLeft: 'auto', backgroundColor: C.accent100, borderRadius: 999,
+    paddingHorizontal: 11, paddingVertical: 4,
+  },
+  chipTxt: { fontFamily: F.heading, fontSize: 13, color: C.accent800 },
+  accentTick: {
+    height: 3, width: 34, borderRadius: 2,
+    backgroundColor: C.accent, marginLeft: 26,
+  },
   logRow: {
     flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between',
     gap: 12, paddingVertical: 9, borderBottomWidth: 1, borderBottomColor: C.divider,
