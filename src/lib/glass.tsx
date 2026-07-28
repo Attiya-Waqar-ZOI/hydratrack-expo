@@ -54,12 +54,14 @@ function Bubble({ cx, delay, duration, scale }: {
 }
 
 export function GoalGlass({
-  ml, fill, width = 72, ground = C.bg,
+  ml, fill, width = 72, ground = C.bg, startEmpty = false, fillMs = 1300,
 }: {
   ml?: number;      // 1000..6000 → design's level mapping
   fill?: number;    // 0..1 direct fill (used on Home for progress)
   width?: number;
   ground?: string;  // color of the surface the glass sits on
+  startEmpty?: boolean; // begin drained and pour in on mount
+  fillMs?: number;      // duration of that first pour
 }) {
   const scale = width / VW;
   const height = VH * scale;
@@ -72,16 +74,22 @@ export function GoalGlass({
     ? 96 - (0.32 + t * 0.6) * 84 - 9
     : 99 - t * 92;
 
-  const level = useRef(new Animated.Value(targetY * scale)).current;
+  const level = useRef(new Animated.Value((startEmpty ? 104 : targetY) * scale)).current;
+  const firstRun = useRef(true);
   const waveA = useRef(new Animated.Value(0)).current;
   const waveB = useRef(new Animated.Value(0)).current;
   const bob = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
+    const pour = firstRun.current && startEmpty;
+    firstRun.current = false;
     Animated.timing(level, {
-      toValue: targetY * scale, duration: 450,
-      easing: Easing.out(Easing.cubic), useNativeDriver: NATIVE,
+      toValue: targetY * scale,
+      duration: pour ? fillMs : 450,
+      easing: pour ? Easing.inOut(Easing.cubic) : Easing.out(Easing.cubic),
+      useNativeDriver: NATIVE,
     }).start();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [targetY, scale, level]);
 
   useEffect(() => {

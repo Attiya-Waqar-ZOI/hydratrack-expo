@@ -1,10 +1,11 @@
 // Onboarding — port of "HydraTrack Onboarding.dc.html" (Broadsheet system).
 // Editorial: big serif headlines, underline input, ruler-tape sliders,
 // radio lists, and an animated water glass on the goal step.
+import * as Haptics from 'expo-haptics';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Pressable, ScrollView, StyleSheet, Text, TextInput, View,
+  Animated, Easing, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -17,6 +18,7 @@ import { Droplet } from '@/lib/logo';
 import { Ruler, RulerLabel } from '@/lib/ruler';
 import { C, F, R, T, btnPrimary } from '@/lib/theme';
 
+const NATIVE = Platform.OS !== 'web';
 const AGE = { min: 14, max: 90, px: 12 };
 const HT = { min: 120, max: 220, px: 6 };
 const WT = { min: 35, max: 160, px: 6 };
@@ -75,8 +77,6 @@ export default function Onboarding() {
   const [goalSet, setGoalSet] = useState<number | null>(
     existing?.useCustomGoal ? (existing.customGoalMl || existing.dailyGoalMl) : null,
   );
-  const [displayMl, setDisplayMl] = useState<number | null>(null);
-  const raf = useRef<number | null>(null);
   const scroll = useRef<ScrollView>(null);
 
   const bmi = useMemo(() => computeBmi(heightCm, weightKg), [heightCm, weightKg]);
@@ -87,24 +87,6 @@ export default function Onboarding() {
   const goal = goalSet ?? recommended;
   const last = step === 6;
   const nameMissing = name.trim() === '';
-
-  // Count the goal up from zero when the last step appears.
-  useEffect(() => {
-    if (step !== 6) return;
-    scroll.current?.scrollTo({ y: 0, animated: false });
-    const t0 = Date.now();
-    const to = goalSet ?? recommended;
-    const frame = () => {
-      const k = Math.min(1, (Date.now() - t0) / 950);
-      const e = 1 - Math.pow(1 - k, 3);
-      setDisplayMl(Math.round((to * e) / 10) * 10);
-      if (k < 1) raf.current = requestAnimationFrame(frame);
-      else setDisplayMl(null);
-    };
-    raf.current = requestAnimationFrame(frame);
-    return () => { if (raf.current) cancelAnimationFrame(raf.current); };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [step]);
 
   useEffect(() => { scroll.current?.scrollTo({ y: 0, animated: false }); }, [step]);
 
@@ -146,15 +128,9 @@ export default function Onboarding() {
     else router.replace('/(tabs)/home');
   };
 
-  const shownMl = goalSet ?? displayMl ?? goal;
   const inch = Math.round(heightCm / 2.54);
   const lb = Math.round(weightKg * 2.20462);
   const bmiLabelText = { underweight: 'underweight', normal: 'healthy weight', overweight: 'overweight', obese: 'obese' }[bmiCategory(bmi)];
-  const goalReason =
-    `${wtImp ? `${lb} lb` : `${weightKg} kg`}, ` +
-    `${ACTIVITIES.find((a) => a.id === activity)!.label.toLowerCase()}, ` +
-    `${CLIMATES.find((c) => c.id === climate)!.label.toLowerCase()} climate` +
-    (location === 'allow' ? '. Adjusted daily for the weather where you are.' : '. Fixed, since location is off.');
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: C.bg }}>
@@ -180,16 +156,17 @@ export default function Onboarding() {
 
       <ScrollView
         ref={scroll}
-        contentContainerStyle={{ paddingHorizontal: 32, paddingTop: 32, paddingBottom: 12 }}
+        contentContainerStyle={{ paddingHorizontal: 32, paddingTop: 28, paddingBottom: 8, flexGrow: 1 }}
         keyboardShouldPersistTaps="handled"
       >
+        <StepIn step={step}>
         {step === 1 && (
-          <View style={{ gap: 28 }}>
+          <View style={{ gap: 18 }}>
             <View>
-              <Text style={T.h1}>
+              <Text style={s.h1o}>
                 {editing ? 'Your details' : "Let's set your\ndaily goal"}
               </Text>
-              <Text style={[T.body, { fontSize: 16, marginTop: 10, maxWidth: 280 }]}>
+              <Text style={[T.body, { fontSize: 15, marginTop: 6, maxWidth: 280 }]}>
                 {editing
                   ? 'Change anything. Your goal updates with it.'
                   : 'Six short questions, about a minute. Everything stays on your device.'}
@@ -210,6 +187,28 @@ export default function Onboarding() {
               )}
             </View>
             <View>
+              <Text style={[s.fieldLabel, { marginBottom: 12 }]}>Sex</Text>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
+                {GENDERS.map((g) => (
+                  <Pressable
+                    key={g.id}
+                    onPress={() => setGender(g.id)}
+                    style={[s.sexChip, gender === g.id && s.sexChipOn]}
+                  >
+                    <Text
+                      style={{
+                        fontFamily: F.heading, fontSize: 15.5,
+                        color: gender === g.id ? C.onAccent : C.text,
+                      }}
+                    >
+                      {g.label}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+            </View>
+            <View style={s.hr} />
+            <View>
               <View style={s.valueRow}>
                 <Text style={s.fieldLabel}>Age</Text>
                 <Text style={s.valueBig}>{age} yrs</Text>
@@ -220,32 +219,14 @@ export default function Onboarding() {
                 onChange={setAge}
               />
             </View>
-            <View>
-              <Text style={[s.fieldLabel, { marginBottom: 14 }]}>Sex</Text>
-              <View style={{ flexDirection: 'row', flexWrap: 'wrap', columnGap: 28, rowGap: 12 }}>
-                {GENDERS.map((g) => (
-                  <Pressable key={g.id} onPress={() => setGender(g.id)} style={{ paddingBottom: 7 }}>
-                    <Text
-                      style={{
-                        fontFamily: F.heading, fontSize: 17,
-                        color: gender === g.id ? C.text : C.faint,
-                      }}
-                    >
-                      {g.label}
-                    </Text>
-                    {gender === g.id && <View style={s.underline} />}
-                  </Pressable>
-                ))}
-              </View>
-            </View>
           </View>
         )}
 
         {step === 2 && (
-          <View style={{ gap: 44 }}>
+          <View style={{ gap: 20 }}>
             <View>
-              <Text style={T.h1}>Your body</Text>
-              <Text style={[T.body, { fontSize: 16, marginTop: 12 }]}>Your goal scales with mass.</Text>
+              <Text style={s.h1o}>Your body</Text>
+              <Text style={[T.body, { fontSize: 15, marginTop: 6 }]}>Your goal scales with mass.</Text>
             </View>
             <View>
               <View style={s.valueRow}>
@@ -293,12 +274,12 @@ export default function Onboarding() {
         )}
 
         {step === 3 && (
-          <View style={{ gap: 40 }}>
+          <View style={{ gap: 22 }}>
             <View>
-              <Text style={T.h1}>How active{'\n'}are you?</Text>
-              <Text style={[T.body, { fontSize: 16, marginTop: 12 }]}>In a typical week.</Text>
+              <Text style={s.h1o}>How active{'\n'}are you?</Text>
+              <Text style={[T.body, { fontSize: 15, marginTop: 6 }]}>In a typical week.</Text>
             </View>
-            <View style={{ gap: 24 }}>
+            <View style={{ gap: 14 }}>
               {ACTIVITIES.map((a) => (
                 <RadioRow
                   key={a.id} label={a.label} desc={a.desc}
@@ -310,14 +291,14 @@ export default function Onboarding() {
         )}
 
         {step === 4 && (
-          <View style={{ gap: 40 }}>
+          <View style={{ gap: 22 }}>
             <View>
-              <Text style={T.h1}>Where you{'\n'}live</Text>
-              <Text style={[T.body, { fontSize: 16, marginTop: 12, maxWidth: 260 }]}>
+              <Text style={s.h1o}>Where you{'\n'}live</Text>
+              <Text style={[T.body, { fontSize: 15, marginTop: 6, maxWidth: 260 }]}>
                 Heat and dry air raise what you lose in a day.
               </Text>
             </View>
-            <View style={{ gap: 26 }}>
+            <View style={{ gap: 16 }}>
               {CLIMATES.map((c) => (
                 <RadioRow
                   key={c.id} label={c.label} desc={c.desc}
@@ -329,14 +310,14 @@ export default function Onboarding() {
         )}
 
         {step === 5 && (
-          <View style={{ gap: 40 }}>
+          <View style={{ gap: 22 }}>
             <View>
-              <Text style={T.h1}>Follow the{'\n'}weather</Text>
-              <Text style={[T.body, { fontSize: 16, marginTop: 12, maxWidth: 290 }]}>
+              <Text style={s.h1o}>Follow the{'\n'}weather</Text>
+              <Text style={[T.body, { fontSize: 15, marginTop: 6, maxWidth: 290 }]}>
                 Optional. With location on, your goal moves with the heat and altitude of where you actually are.
               </Text>
             </View>
-            <View style={{ gap: 26 }}>
+            <View style={{ gap: 16 }}>
               <RadioRow
                 label="Allow location"
                 desc={locBusy
@@ -356,36 +337,26 @@ export default function Onboarding() {
         )}
 
         {step === 6 && (
-          <View style={{ gap: 26 }}>
-            <Text style={T.h1}>Your daily{'\n'}goal</Text>
-            <View>
-              <View style={{ flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', gap: 12 }}>
-                <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 12 }}>
-                  <Text style={s.goalBig}>{(shownMl / 1000).toFixed(1)}</Text>
-                  <Text style={s.goalUnit}>litres a day</Text>
-                </View>
-                <GoalGlass ml={shownMl} />
-              </View>
-              <View style={{ marginTop: 18 }}>
-                <Ruler
-                  value={goal} min={GOAL.min} max={GOAL.max} px={GOAL.px} step={GOAL.step}
-                  labels={rulerLabels('goal', false)}
-                  onChange={setGoalSet}
-                />
-              </View>
-              <Text style={[T.body, { fontSize: 15, marginTop: 10 }]}>
-                {shownMl.toLocaleString('en-US')} ml · {goalSet == null || goalSet === recommended ? 'recommended' : 'adjusted by you'}
-              </Text>
-            </View>
-            <View>
-              <Text style={[s.fieldLabel, { fontSize: 21, marginBottom: 4 }]}>Why this number</Text>
-              <Text style={[T.body, { fontSize: 15, maxWidth: 300 }]}>{goalReason}</Text>
+          <View style={{ gap: 20 }}>
+            <Text style={[s.h1o, { textAlign: 'center' }]}>Your daily goal</Text>
+            <GoalReveal
+              ml={goal}
+              adjusted={goalSet != null && goalSet !== recommended}
+            />
+            <View style={{ alignSelf: 'stretch', marginTop: 2 }}>
+              <Text style={s.adjustKicker}>Drag to adjust</Text>
+              <Ruler
+                value={goal} min={GOAL.min} max={GOAL.max} px={GOAL.px} step={GOAL.step}
+                labels={rulerLabels('goal', false)}
+                onChange={setGoalSet}
+              />
             </View>
           </View>
         )}
+        </StepIn>
       </ScrollView>
 
-      <View style={{ paddingHorizontal: 32, paddingTop: 16, paddingBottom: 12 }}>
+      <View style={{ paddingHorizontal: 18, paddingTop: 10, paddingBottom: 10 }}>
         <Pressable
           onPress={next}
           style={({ pressed }) => [
@@ -428,6 +399,86 @@ function rulerLabels(kind: 'age' | 'height' | 'weight' | 'goal', imperial: boole
     }
   }
   return out;
+}
+
+/// Every step slides up and fades in as it appears.
+function StepIn({ step, children }: { step: number; children: React.ReactNode }) {
+  const v = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    v.setValue(0);
+    Animated.timing(v, {
+      toValue: 1, duration: 340,
+      easing: Easing.out(Easing.cubic), useNativeDriver: NATIVE,
+    }).start();
+  }, [step, v]);
+  return (
+    <Animated.View
+      style={{
+        flex: 1,
+        opacity: v,
+        transform: [{ translateY: v.interpolate({ inputRange: [0, 1], outputRange: [18, 0] }) }],
+      }}
+    >
+      {children}
+    </Animated.View>
+  );
+}
+
+/// The finale: the glass pours full while the figure counts up on the same
+/// easing, so they land together. On landing: a success haptic, one soft
+/// ripple behind the glass, and a small settle of the number.
+function GoalReveal({ ml, adjusted }: { ml: number; adjusted: boolean }) {
+  const [shown, setShown] = useState(0);
+  const settle = useRef(new Animated.Value(0)).current;
+  const raf = useRef<number | null>(null);
+  const mounted = useRef(false);
+  const ticks = useRef(0);
+
+  useEffect(() => {
+    if (mounted.current) { setShown(ml); return; }   // ruler edits update instantly
+    mounted.current = true;
+    const t0 = Date.now();
+    const DUR = 2000;
+    const frame = () => {
+      const k = Math.min(1, (Date.now() - t0) / DUR);
+      const e = k < 0.5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2;
+      setShown(Math.round((ml * e) / 10) * 10);
+      // Haptic crescendo: ticks as the water rises, firmer near the top.
+      const stage = Math.floor(e * 8);
+      if (NATIVE && stage > ticks.current) {
+        ticks.current = stage;
+        Haptics.impactAsync(
+          e < 0.65 ? Haptics.ImpactFeedbackStyle.Light : Haptics.ImpactFeedbackStyle.Medium,
+        ).catch(() => {});
+      }
+      if (k < 1) { raf.current = requestAnimationFrame(frame); return; }
+      setShown(ml);
+      if (NATIVE) Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+      Animated.sequence([
+        Animated.timing(settle, { toValue: 1, duration: 150, easing: Easing.out(Easing.quad), useNativeDriver: NATIVE }),
+        Animated.spring(settle, { toValue: 0, damping: 8, stiffness: 170, useNativeDriver: NATIVE }),
+      ]).start();
+    };
+    raf.current = requestAnimationFrame(frame);
+    return () => { if (raf.current) cancelAnimationFrame(raf.current); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ml]);
+
+  return (
+    <View style={{ alignItems: 'center', gap: 6 }}>
+      <GoalGlass ml={ml} width={112} startEmpty fillMs={2000} />
+      <Animated.View
+        style={{
+          flexDirection: 'row', alignItems: 'flex-end', gap: 8,
+          transform: [{ scale: settle.interpolate({ inputRange: [0, 1], outputRange: [1, 1.05] }) }],
+        }}
+      >
+        <Text style={s.goalBig}>{(shown / 1000).toFixed(1)}</Text>
+        <Text style={s.goalUnit}>litres a day</Text>
+      </Animated.View>
+      <Text style={s.revealTag}>{adjusted ? 'Adjusted by you' : 'Recommended'}</Text>
+    </View>
+  );
 }
 
 /// Radio list row: 22px circle with accent dot, serif label, muted desc.
@@ -500,23 +551,29 @@ function BmiBand({ bmi }: { bmi: number }) {
 }
 
 const s = StyleSheet.create({
-  header: { paddingHorizontal: 32, paddingTop: 8, gap: 18 },
+  header: { paddingHorizontal: 32, paddingTop: 6, gap: 12 },
   headerRow: { flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 28 },
   brand: { fontFamily: F.heading, fontSize: 17, letterSpacing: -0.2, color: C.text },
   stepLabel: { marginLeft: 'auto', fontFamily: F.body, fontSize: 12.5, letterSpacing: 2, color: C.faint },
   track: { height: 3, borderRadius: 2, backgroundColor: C.neutral300, overflow: 'hidden' },
   fill: { height: 3, borderRadius: 2, backgroundColor: C.accent },
-  fieldLabel: { fontFamily: F.heading, fontSize: 17, color: C.text, marginBottom: 2 },
+  h1o: { fontFamily: F.heading, fontSize: 30, lineHeight: 33, letterSpacing: -0.8, color: C.text },
+  fieldLabel: { fontFamily: F.heading, fontSize: 18, color: C.muted, marginBottom: 4 },
+  hr: { height: 1, backgroundColor: C.divider, marginVertical: -6 },
+  sexChip: {
+    backgroundColor: C.surface, borderRadius: R.md,
+    paddingVertical: 11, paddingHorizontal: 18,
+  },
+  sexChipOn: { backgroundColor: C.accent },
   fieldHint: { marginTop: 8, fontFamily: F.body, fontSize: 12.5, color: C.accent2Deep },
   bareInput: {
-    paddingVertical: 8, paddingHorizontal: 0,
-    fontFamily: F.heading, fontSize: 26, letterSpacing: -0.5, color: C.text,
-    borderBottomWidth: 1, borderBottomColor: C.divider,
+    backgroundColor: C.surface, borderRadius: R.md,
+    paddingVertical: 14, paddingHorizontal: 16,
+    fontFamily: F.heading, fontSize: 22, letterSpacing: -0.4, color: C.text,
   },
   valueRow: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 2 },
   valueBig: { fontFamily: F.heading, fontSize: 30, letterSpacing: -0.6, color: C.text },
-  readout: { fontFamily: F.heading, fontSize: 34, letterSpacing: -0.85, color: C.text, marginTop: 4, marginBottom: 2 },
-  underline: { position: 'absolute', left: 0, right: 0, bottom: 0, height: 2, backgroundColor: C.accent },
+  readout: { fontFamily: F.heading, fontSize: 30, letterSpacing: -0.7, color: C.text, marginTop: 2, marginBottom: 2 },
   radio: {
     width: 22, height: 22, marginTop: 3, borderRadius: 11,
     borderWidth: 1.5, borderColor: C.neutral400,
@@ -528,8 +585,17 @@ const s = StyleSheet.create({
     borderRadius: R.md, overflow: 'hidden',
   },
   segOpt: { paddingVertical: 5, paddingHorizontal: 13 },
-  goalBig: { fontFamily: F.heading, fontSize: 72, lineHeight: 78, letterSpacing: -2.8, color: C.text, marginBottom: -10 },
-  goalUnit: { fontFamily: F.heading, fontSize: 19, color: C.neutral600, paddingBottom: 6 },
+  goalBig: { fontFamily: F.heading, fontSize: 56, lineHeight: 61, letterSpacing: -2, color: C.text, marginBottom: -7 },
+
+  revealTag: {
+    fontFamily: F.body, fontSize: 11, letterSpacing: 1.6, textTransform: 'uppercase',
+    color: C.faint, marginTop: 2,
+  },
+  adjustKicker: {
+    fontFamily: F.body, fontSize: 11, letterSpacing: 1.6, textTransform: 'uppercase',
+    color: C.faint, textAlign: 'center', marginBottom: 10,
+  },
+  goalUnit: { fontFamily: F.heading, fontSize: 16, color: C.neutral600, paddingBottom: 5 },
   bandLabel: { position: 'absolute', top: 3, fontFamily: F.body, fontSize: 11.8, color: C.faint, transform: [{ translateX: -10 }] },
   ctaTxt: { fontFamily: F.heading, fontSize: 18, color: C.onAccent },
 });

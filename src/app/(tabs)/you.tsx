@@ -55,12 +55,17 @@ export default function You() {
     <SafeAreaView style={{ flex: 1, backgroundColor: C.bg }}>
       <AppHeader />
       <ScrollView contentContainerStyle={{ paddingHorizontal: 26, paddingTop: 22, paddingBottom: 24 }}>
-        {/* Identity */}
+        {/* Identity: monogram, name, facts */}
         <View style={s.identity}>
+          <View style={s.avatar}>
+            <Text style={s.avatarTxt}>{(p.name.trim()[0] ?? 'H').toUpperCase()}</Text>
+          </View>
           <View style={{ flex: 1 }}>
-            <Text style={T.h1}>{p.name}</Text>
-            <Text style={[T.body, { fontSize: 15, marginTop: 8 }]}>
-              {p.age} yrs · {GENDER_LABELS[p.gender as Gender] ?? p.gender} ·{' '}
+            <Text style={s.idName}>{p.name}</Text>
+            <Text style={[T.body, { fontSize: 14, marginTop: 3 }]}>
+              {p.age} yrs · {GENDER_LABELS[p.gender as Gender] ?? p.gender}
+            </Text>
+            <Text style={[T.small, { fontSize: 13, marginTop: 1 }]}>
               {ACTIVITY_LABELS[p.activity as ActivityLevel]}
             </Text>
           </View>
@@ -210,7 +215,14 @@ function Seg({ options, selected, onSelect }: {
 }
 
 const s = StyleSheet.create({
-  identity: { flexDirection: 'row', alignItems: 'flex-start', gap: 14, paddingBottom: 26 },
+  identity: { flexDirection: 'row', alignItems: 'center', gap: 16, paddingVertical: 6, paddingBottom: 24 },
+  avatar: {
+    width: 58, height: 58, borderRadius: 29,
+    backgroundColor: C.accent100,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  avatarTxt: { fontFamily: F.heading, fontSize: 26, color: C.accentDeep, marginTop: -2 },
+  idName: { fontFamily: F.heading, fontSize: 22, letterSpacing: -0.4, color: C.text },
   ghost: { fontFamily: F.heading, fontSize: 15, color: C.accentDeep, paddingVertical: 6 },
   row: { borderTopWidth: 1, borderTopColor: C.divider, paddingVertical: 20 },
   rowHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
