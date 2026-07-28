@@ -21,6 +21,7 @@ export default function TabsLayout() {
       }}
     >
       <Tabs.Screen name="home" options={{ title: 'Home', tabBarIcon: icon('💧') }} />
+      <Tabs.Screen name="insights" options={{ title: 'Insights', tabBarIcon: icon('💡') }} />
       <Tabs.Screen name="history" options={{ title: 'History', tabBarIcon: icon('📊') }} />
       <Tabs.Screen name="you" options={{ title: 'You', tabBarIcon: icon('🙂') }} />
     </Tabs>
