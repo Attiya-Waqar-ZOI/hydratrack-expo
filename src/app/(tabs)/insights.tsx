@@ -1,17 +1,16 @@
+// Insights ("Coach") — port of the design: a spoken pace line under the
+// headline, the pace bar with an ink target marker, one concrete next
+// action, and the day's drink list.
 import React from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useApp } from '@/lib/app-state';
-import { caffeineForDay } from '@/lib/db';
-import {
-  beverageById, catchUpPlan, fmtVol, hydrationPace, recommendation, todayKey,
-} from '@/lib/engines';
-import { GlowPanel } from '@/lib/glow';
-import { C } from '@/lib/theme';
+import { AppHeader, LogRow } from '@/lib/chrome';
+import { caffeineForDay, store } from '@/lib/db';
+import { beverageById, fmtVol, hydrationPace, todayKey } from '@/lib/engines';
+import { C, F, T } from '@/lib/theme';
 
-/// Dense dashboard: stat tiles, a visual pace bar (you vs. where you should
-/// be), a coach card, and today's drink timeline.
 export default function Insights() {
   const app = useApp();
   const p = app.profile;
@@ -23,113 +22,175 @@ export default function Insights() {
   const now = new Date();
   const nowMin = now.getHours() * 60 + now.getMinutes();
   const pace = hydrationPace(nowMin, p.wakeMin, p.sleepMin, total, goal);
-  const plan = catchUpPlan(Math.max(0, goal - total), nowMin, p.sleepMin);
-  const caffeine = caffeineForDay(todayKey());
+  const remain = Math.max(0, goal - total);
   const pct = goal > 0 ? Math.min(1, total / goal) : 0;
   const expPct = goal > 0 ? Math.min(1, pace.expectedMl / goal) : 0;
 
+  const paceLine = pace.deltaMl >= 0
+    ? `${fmtVol(pace.deltaMl, useOz)} ahead of where you need to be.`
+    : `${fmtVol(-pace.deltaMl, useOz)} behind where you need to be.`;
+
+  const nextAction = (() => {
+    if (remain <= 0) return 'Nothing needed. You have met today’s goal.';
+    const servings = Math.max(1, Math.ceil(remain / 250));
+    const hoursLeft = Math.max(0.5, (p.sleepMin - nowMin) / 60);
+    const every = Math.max(0.5, Math.round((hoursLeft / servings) * 10) / 10);
+    return `Drink 250 ml now, then a glass roughly every ${every} hours until bed.`;
+  })();
+
+  const rows = [...app.todayLogs].reverse();
+
+  // ── Week figures and patterns, computed from the last seven days ──
+  const week = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date();
+    d.setDate(d.getDate() - (6 - i));
+    return todayKey(d);
+  });
+  const totalsMap = new Map(store.totalsByDay(10).map((t) => [t.dayKey, t.totalMl]));
+  const weekTotal = week.reduce((sum, k) => sum + (totalsMap.get(k) ?? 0), 0);
+  const avg = Math.round(weekTotal / 7);
+  const daysOnGoal = week.filter((k) => (totalsMap.get(k) ?? 0) >= goal).length;
+
+  let streak = 0;
+  for (let i = week.length - 1; i >= 0; i--) {
+    if ((totalsMap.get(week[i]) ?? 0) >= goal) streak++;
+    else if (i < week.length - 1) break;   // today not met yet doesn't break the chain
+    else continue;
+  }
+
+  let morningMl = 0, waterMl = 0, allMl = 0;
+  for (const k of week) {
+    for (const l of store.logsForDay(k)) {
+      allMl += l.amountMl;
+      if (new Date(l.loggedAt).getHours() < 12) morningMl += l.amountMl;
+      if (l.beverageId === 'water' || l.beverageId === 'sparkling') waterMl += l.amountMl;
+    }
+  }
+  const caffeine = caffeineForDay(todayKey());
+  const morningShare = allMl > 0 ? morningMl / allMl : 0;
+  const waterShare = allMl > 0 ? waterMl / allMl : 0;
+
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: C.bg }}>
-      <ScrollView contentContainerStyle={{ padding: 20, gap: 14, paddingBottom: 110 }}>
-        <Text style={s.h1}>Insights</Text>
-
-        {/* Stat tiles */}
-        <View style={s.grid}>
-          <Tile emoji="💧" value={fmtVol(total, useOz)} label="Drank today" colors={['rgba(123,232,245,0.6)', 'rgba(37,199,224,0.6)']} />
-          <Tile emoji="🎯" value={fmtVol(goal, useOz)} label={app.env.totalMl > 0 ? `Goal · +${app.env.totalMl} weather` : 'Today’s goal'} colors={['rgba(37,199,224,0.6)', 'rgba(27,143,166,0.6)']} />
-          <Tile emoji="☕" value={`${caffeine} mg`} label="Caffeine" colors={['rgba(27,143,166,0.6)', 'rgba(37,199,224,0.6)']} />
-          <Tile emoji="🥤" value={`${app.todayLogs.length}`} label="Drinks logged" colors={['rgba(123,232,245,0.6)', 'rgba(27,143,166,0.6)']} />
+      <AppHeader />
+      <ScrollView contentContainerStyle={{ paddingHorizontal: 26, paddingTop: 22, paddingBottom: 24, gap: 22 }}>
+        <View>
+          <Text style={T.h1}>Coach</Text>
+          <Text style={[T.body, { fontSize: 16, marginTop: 8, maxWidth: 300 }]}>{paceLine}</Text>
         </View>
 
         {/* Pace bar */}
-        <GlowPanel glow colors={pace.onTrack ? ['rgba(61,220,151,0.6)', 'rgba(123,232,245,0.6)'] : ['rgba(242,166,90,0.65)', 'rgba(232,132,90,0.6)']}>
-          <View style={s.rowBetween}>
-            <Text style={s.cardTitle}>Today&apos;s pace</Text>
-            <View style={[s.pill, { backgroundColor: pace.onTrack ? 'rgba(61,220,151,0.15)' : 'rgba(242,166,90,0.15)' }]}>
-              <Text style={{ color: pace.onTrack ? C.success : C.warning, fontWeight: '700', fontSize: 12 }}>
-                {pace.onTrack ? 'On track' : 'Behind pace'}
-              </Text>
-            </View>
-          </View>
+        <View style={s.ruled}>
+          <Text style={s.paceState}>{pace.onTrack ? 'On pace' : 'Behind'}</Text>
           <View style={s.track}>
-            <View style={[s.fill, { width: `${pct * 100}%`, backgroundColor: pace.onTrack ? C.success : C.warning }]} />
+            <View style={[s.fill, { width: `${pct * 100}%` }]} />
             <View style={[s.marker, { left: `${expPct * 100}%` }]} />
           </View>
-          <Text style={s.legend}>▬ you   |  where you should be by now</Text>
-          <Text style={s.sub}>{pace.status}</Text>
-        </GlowPanel>
+          <View style={s.scaleRow}>
+            <Text style={s.scaleTxt}>{fmtVol(total, useOz)} so far</Text>
+            <Text style={s.scaleTxt}>{fmtVol(goal, useOz)} by bedtime</Text>
+          </View>
+        </View>
 
-        {/* Coach */}
-        <GlowPanel colors={['rgba(37,199,224,0.6)', 'rgba(123,232,245,0.5)']}>
-          <Text style={[s.cardTitle, { color: C.mint }]}>🧠 Coach</Text>
-          {plan && <Text style={s.sub}>{plan.rushed ? '⚡ ' : ''}{plan.message}</Text>}
-          <Text style={[s.sub, { marginTop: 6 }]}>💡 {recommendation(total, goal, now.getHours(), 0)}</Text>
-        </GlowPanel>
+        {/* Next action */}
+        <View style={s.ruled}>
+          <Text style={s.section}>Do this next</Text>
+          <Text style={[T.body, { fontSize: 16, maxWidth: 320 }]}>{nextAction}</Text>
+        </View>
 
-        {/* Today's drinks timeline */}
-        <GlowPanel colors={['rgba(37,199,224,0.5)', 'rgba(27,143,166,0.5)']}>
-          <Text style={s.cardTitle}>Today&apos;s drinks</Text>
-          {app.todayLogs.length === 0 && (
-            <Text style={s.sub}>Nothing yet — the first sip sets the tone. 💧</Text>
+        {/* This week */}
+        <View style={s.ruled}>
+          <Text style={[s.section, { marginBottom: 14 }]}>This week</Text>
+          <View style={s.figRow}>
+            <View style={{ flex: 1 }}>
+              <Text style={T.kicker}>Average</Text>
+              <Text style={s.fig}>{fmtVol(avg, useOz)}</Text>
+              <Text style={s.figNote}>a day</Text>
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={T.kicker}>On goal</Text>
+              <Text style={s.fig}>{daysOnGoal} of 7</Text>
+              <Text style={s.figNote}>days</Text>
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={T.kicker}>Streak</Text>
+              <Text style={s.fig}>{streak}</Text>
+              <Text style={s.figNote}>{streak === 1 ? 'day' : 'days'}</Text>
+            </View>
+          </View>
+          {allMl > 0 ? (
+            <View style={{ gap: 12, marginTop: 20 }}>
+              <MetricBar label="Before noon" frac={morningShare} value={`${Math.round(morningShare * 100)}%`} />
+              <MetricBar label="Plain water" frac={waterShare} value={`${Math.round(waterShare * 100)}%`} />
+              <MetricBar
+                label="Caffeine today"
+                frac={Math.min(1, caffeine / 400)}
+                value={`${caffeine} mg`}
+                warn={caffeine >= 300}
+              />
+            </View>
+          ) : (
+            <Text style={[T.body, { fontSize: 14, marginTop: 16 }]}>
+              Log a few days and patterns appear here
+            </Text>
           )}
-          {[...app.todayLogs].reverse().map((l) => {
-            const bev = beverageById(l.beverageId);
+        </View>
+
+        {/* Today's drinks */}
+        <View style={s.ruled}>
+          <Text style={[s.section, { marginBottom: 10 }]}>Today&apos;s drinks</Text>
+          {rows.length === 0 && <Text style={[T.body, { fontSize: 15 }]}>Nothing logged yet today.</Text>}
+          {rows.map((l) => {
             const t = new Date(l.loggedAt);
             return (
-              <View key={l.id} style={s.logRow}>
-                <Text style={{ fontSize: 18 }}>{bev.emoji}</Text>
-                <Text style={s.logName}>{bev.name}</Text>
-                <Text style={s.sub}>
-                  {String(t.getHours()).padStart(2, '0')}:{String(t.getMinutes()).padStart(2, '0')}
-                </Text>
-                <Text style={[s.logMl, { color: bev.color }]}>+{l.amountMl} ml</Text>
-              </View>
+              <LogRow
+                key={l.id}
+                name={beverageById(l.beverageId).name}
+                time={`${String(t.getHours()).padStart(2, '0')}:${String(t.getMinutes()).padStart(2, '0')}`}
+                amount={`+${fmtVol(l.amountMl, useOz)}`}
+              />
             );
           })}
-        </GlowPanel>
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
 }
 
-function Tile({ emoji, value, label, colors }: {
-  emoji: string; value: string; label: string; colors: [string, string];
+/// One-line pattern metric: label, thin bar, serif value.
+function MetricBar({ label, frac, value, warn = false }: {
+  label: string; frac: number; value: string; warn?: boolean;
 }) {
   return (
-    <View style={{ flexBasis: '47.5%', flexGrow: 1 }}>
-      <GlowPanel colors={colors} style={{ padding: 14 }}>
-        <Text style={{ fontSize: 20 }}>{emoji}</Text>
-        <Text style={s.tileVal}>{value}</Text>
-        <Text style={s.tileLabel}>{label}</Text>
-      </GlowPanel>
+    <View style={s.metricRow}>
+      <Text style={s.metricLabel}>{label}</Text>
+      <View style={s.metricTrack}>
+        <View style={[
+          s.metricFill,
+          { width: `${Math.max(2, Math.min(1, frac) * 100)}%` },
+          warn && { backgroundColor: C.accent2400 },
+        ]} />
+      </View>
+      <Text style={[s.metricVal, warn && { color: C.accent2Deep }]}>{value}</Text>
     </View>
   );
 }
 
 const s = StyleSheet.create({
-  h1: { color: C.text, fontSize: 26, fontWeight: '900' },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
-  tileVal: { color: C.text, fontWeight: '900', fontSize: 20, marginTop: 6 },
-  tileLabel: { color: C.muted, fontSize: 12, marginTop: 2 },
-  cardTitle: { color: C.text, fontWeight: '800', marginBottom: 6 },
-  sub: { color: C.muted, lineHeight: 19, marginTop: 2 },
-  rowBetween: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  pill: { borderRadius: 20, paddingHorizontal: 10, paddingVertical: 4 },
-  track: {
-    height: 14, borderRadius: 8, backgroundColor: C.surfaceAlt,
-    marginTop: 12, overflow: 'visible',
-  },
-  fill: { height: 14, borderRadius: 8 },
-  marker: {
-    position: 'absolute', top: -3, width: 3, height: 20,
-    backgroundColor: C.text, borderRadius: 2,
-  },
-  legend: { color: C.muted, fontSize: 11, marginTop: 8 },
-  logRow: {
-    flexDirection: 'row', alignItems: 'center', gap: 10,
-    paddingVertical: 8, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.05)',
-    marginTop: 6,
-  },
-  logName: { color: C.text, fontWeight: '700', flex: 1 },
-  logMl: { fontWeight: '800' },
+  ruled: { borderTopWidth: 1, borderTopColor: C.divider, paddingTop: 22 },
+  paceState: { fontFamily: F.heading, fontSize: 15, color: C.text, marginBottom: 9 },
+  track: { height: 10, backgroundColor: C.neutral200, overflow: 'visible' },
+  fill: { height: 10, backgroundColor: C.accent },
+  marker: { position: 'absolute', top: -5, width: 2, height: 20, backgroundColor: C.text },
+  scaleRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 9 },
+  scaleTxt: { fontFamily: F.body, fontSize: 13.5, color: C.muted },
+  section: { fontFamily: F.heading, fontSize: 21, letterSpacing: -0.3, color: C.text, marginBottom: 4 },
+  figRow: { flexDirection: 'row', gap: 16 },
+  fig: { fontFamily: F.heading, fontSize: 26, letterSpacing: -0.5, color: C.text, marginTop: 3 },
+  figNote: { fontFamily: F.body, fontSize: 12.5, color: C.faint, marginTop: 1 },
+  metricRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  metricLabel: { fontFamily: F.body, fontSize: 13.5, color: C.muted, width: 104 },
+  metricTrack: { flex: 1, height: 6, backgroundColor: C.neutral200 },
+  metricFill: { height: 6, backgroundColor: C.accent },
+  metricVal: { fontFamily: F.heading, fontSize: 14, color: C.text, minWidth: 52, textAlign: 'right' },
 });
