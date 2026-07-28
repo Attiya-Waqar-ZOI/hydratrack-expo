@@ -88,6 +88,7 @@ export default function History() {
                   <View style={{
                     width: '100%',
                     height: Math.max(3, Math.min(1.25, p) * BAR_MAX),
+                    borderTopLeftRadius: 6, borderTopRightRadius: 6,
                     backgroundColor: picked ? C.accent : C.accent300,
                   }} />
                   <View style={s.baseline} />
@@ -214,7 +215,7 @@ const s = StyleSheet.create({
   monthGrid: { flexDirection: 'row', flexWrap: 'wrap' },
   cellWrap: { width: '14.28%', padding: 2.5 },
   cell: {
-    aspectRatio: 1,
+    aspectRatio: 1, borderRadius: 9,
     alignItems: 'center', justifyContent: 'center',
   },
   cellTxt: { fontFamily: F.body, fontSize: 11.5, color: '#444141' },

@@ -147,10 +147,10 @@ const s = StyleSheet.create({
   amtRow: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: 12 },
   readout: { fontFamily: F.heading, fontSize: 30, letterSpacing: -0.7, color: C.text },
   whenChip: {
-    borderWidth: 1, borderColor: C.divider, borderRadius: 2,
+    borderWidth: 1, borderColor: C.divider, borderRadius: 12,
     paddingVertical: 8, paddingHorizontal: 14,
   },
-  whenChipOn: { borderWidth: 1.5, borderColor: C.accent, paddingVertical: 7.5, paddingHorizontal: 13.5 },
+  whenChipOn: { borderWidth: 1.5, borderColor: C.accent, paddingVertical: 7.5, paddingHorizontal: 13.5, borderRadius: 12 },
   hydRow: {
     flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between',
     gap: 12, paddingTop: 2,

@@ -504,8 +504,8 @@ const s = StyleSheet.create({
   headerRow: { flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 28 },
   brand: { fontFamily: F.heading, fontSize: 17, letterSpacing: -0.2, color: C.text },
   stepLabel: { marginLeft: 'auto', fontFamily: F.body, fontSize: 12.5, letterSpacing: 2, color: C.faint },
-  track: { height: 2, backgroundColor: C.neutral300 },
-  fill: { height: 2, backgroundColor: C.accent },
+  track: { height: 3, borderRadius: 2, backgroundColor: C.neutral300, overflow: 'hidden' },
+  fill: { height: 3, borderRadius: 2, backgroundColor: C.accent },
   fieldLabel: { fontFamily: F.heading, fontSize: 17, color: C.text, marginBottom: 2 },
   fieldHint: { marginTop: 8, fontFamily: F.body, fontSize: 12.5, color: C.accent2Deep },
   bareInput: {

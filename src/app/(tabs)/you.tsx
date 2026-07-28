@@ -217,10 +217,10 @@ const s = StyleSheet.create({
   rowTitle: { fontFamily: F.heading, fontSize: 21, letterSpacing: -0.3, color: C.text },
   rowSub: { fontFamily: F.body, fontSize: 14, color: C.muted, marginTop: 2 },
   readout: { fontFamily: F.heading, fontSize: 30, letterSpacing: -0.7, color: C.text, marginBottom: 2 },
-  seg: { flexDirection: 'row', borderWidth: 1, borderColor: C.divider, borderRadius: 2, overflow: 'hidden' },
-  segOpt: { paddingVertical: 5, paddingHorizontal: 13 },
+  seg: { flexDirection: 'row', borderWidth: 1, borderColor: C.divider, borderRadius: 999, overflow: 'hidden' },
+  segOpt: { paddingVertical: 6, paddingHorizontal: 15 },
   countRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
   stepBtn: { fontFamily: F.body, fontSize: 20, color: C.accentDeep, width: 24, textAlign: 'center' },
   count: { fontFamily: F.heading, fontSize: 19, minWidth: 22, textAlign: 'center', color: C.text },
-  timeChip: { backgroundColor: C.neutral200, borderRadius: 2, paddingVertical: 5, paddingHorizontal: 9 },
+  timeChip: { backgroundColor: C.neutral200, borderRadius: 999, paddingVertical: 5, paddingHorizontal: 12 },
 });

@@ -1,16 +1,16 @@
 // Broadsheet — editorial design system from the user's Claude Design project.
-// Warm paper ground, ink text, one water-blue accent plus a magenta second
-// ink used only for warnings. Serif throughout, near-square corners,
+// Airy water-tinted ground, ink text, one water-blue accent plus a magenta
+// second ink used only for warnings. Serif throughout, soft rounded corners,
 // hairline dividers instead of boxed cards.
 export const C = {
-  bg: '#f3f2f2',        // paper
-  surface: '#eae9e9',   // card / quiet fill
+  bg: '#f2f8fb',        // airy paper with a breath of water blue
+  surface: '#e9f2f7',   // card / quiet fill, cool-tinted
   text: '#201e1d',      // ink
   muted: '#605d5d',     // neutral-700, secondary text
   faint: '#9b9797',     // neutral-500, small labels and ticks
   divider: 'rgba(32,30,29,0.16)',
-  neutral200: '#eae7e7',
-  neutral300: '#d7d3d3',
+  neutral200: '#e2edf3',
+  neutral300: '#d3e1e8',
   neutral400: '#bab6b6',
   neutral600: '#7d7979',
   ink: '#2d2b2b',       // inverse surface (snackbar)
@@ -37,20 +37,20 @@ export const F = {
   body: 'SourceSerif4_400Regular',
 };
 
-// Near-square radii.
-export const R = { sm: 1, md: 2, lg: 4 };
+// Soft radii: rounded, easy on the eye.
+export const R = { sm: 8, md: 12, lg: 18 };
 
 // Broadsheet card: quiet surface fill, no border, no shadow.
 export const card = {
   backgroundColor: C.surface,
-  borderRadius: R.md,
-  padding: 15,
+  borderRadius: R.lg,
+  padding: 16,
 } as const;
 
 // Full-width primary button, 56px, serif, paper text on accent.
 export const btnPrimary = {
   backgroundColor: C.accent,
-  borderRadius: R.md,
+  borderRadius: 28,
   height: 56,
   alignItems: 'center' as const,
   justifyContent: 'center' as const,
