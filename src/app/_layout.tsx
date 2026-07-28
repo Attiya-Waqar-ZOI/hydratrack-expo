@@ -1,13 +1,20 @@
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import React from 'react';
+import React, { useEffect } from 'react';
 import { View } from 'react-native';
 
 import { AppStateProvider } from '@/lib/app-state';
+import { loadReminderPrefs, resyncReminders } from '@/lib/reminders';
 import { ToastHost } from '@/lib/toast';
 import { C } from '@/lib/theme';
 
 export default function RootLayout() {
+  // Reschedule reminders every launch so they track the device's
+  // current clock and timezone (travel, DST, manual time changes).
+  useEffect(() => {
+    loadReminderPrefs().then(resyncReminders).catch(() => {});
+  }, []);
+
   return (
     <AppStateProvider>
       <View style={{ flex: 1 }}>

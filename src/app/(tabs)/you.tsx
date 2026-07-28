@@ -1,4 +1,3 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -9,6 +8,10 @@ import {
   ACTIVITY_LABELS, ActivityLevel, BMI_LABELS, Climate, bmiCategory, fmtVol,
 } from '@/lib/engines';
 import { GlowPanel } from '@/lib/glow';
+import {
+  DEFAULT_PREFS, ReminderPrefs, fmtClock, loadReminderPrefs, reminderTimes,
+  saveReminderPrefs,
+} from '@/lib/reminders';
 import { showToast } from '@/lib/toast';
 import { C } from '@/lib/theme';
 
@@ -126,45 +129,91 @@ export default function You() {
   );
 }
 
-/// Reminder preferences (persisted). The scheduling engine hooks in next —
-/// these settings are what it will read.
+/// Reminder preferences — count plus a fully custom time window. Every
+/// change reschedules the local notifications on the device clock.
 function NotificationSettings() {
-  const [on, setOn] = useState(false);
-  const [perDay, setPerDay] = useState(6);
+  const [prefs, setPrefs] = useState<ReminderPrefs>(DEFAULT_PREFS);
 
   useEffect(() => {
-    AsyncStorage.multiGet(['remindersOn', 'remindersPerDay']).then(([a, b]) => {
-      if (a[1] != null) setOn(a[1] === '1');
-      if (b[1] != null) setPerDay(parseInt(b[1], 10) || 6);
-    });
+    loadReminderPrefs().then(setPrefs);
   }, []);
 
-  const save = (nextOn: boolean, nextPerDay: number) => {
-    setOn(nextOn);
-    setPerDay(nextPerDay);
-    AsyncStorage.multiSet([
-      ['remindersOn', nextOn ? '1' : '0'],
-      ['remindersPerDay', String(nextPerDay)],
-    ]);
+  const save = (next: ReminderPrefs) => {
+    setPrefs(next);
+    saveReminderPrefs(next).then(({ scheduled, denied }) => {
+      if (denied) {
+        showToast('🔕 Allow notifications in iOS Settings to get reminders');
+      } else if (next.on && scheduled > 0) {
+        showToast(`🔔 ${scheduled} daily reminders, ${fmtClock(next.startMin)} – ${fmtClock(next.endMin)}`);
+      }
+    });
   };
+
+  const times = reminderTimes(prefs);
+  const STEP = 30; // minutes per tap on the time steppers
 
   return (
     <GlowPanel colors={['rgba(27,143,166,0.6)', 'rgba(37,199,224,0.5)']}>
       <Text style={s.cardTitle}>🔔 Reminders</Text>
       <View style={s.row}>
-        <Seg label="Off" on={!on} onPress={() => save(false, perDay)} />
-        <Seg label="On" on={on} onPress={() => { save(true, perDay); showToast('🔔 Reminders will arrive between wake & sleep'); }} />
+        <Seg label="Off" on={!prefs.on} onPress={() => save({ ...prefs, on: false })} />
+        <Seg label="On" on={prefs.on} onPress={() => save({ ...prefs, on: true })} />
       </View>
-      {on && (
-        <View style={[s.row, { marginTop: 12, alignItems: 'center' }]}>
-          <Btn label="−" onPress={() => save(true, Math.max(2, perDay - 1))} />
-          <Text style={[s.metric, { marginHorizontal: 14, fontSize: 18 }]}>
-            {perDay} / day
+      {prefs.on && (
+        <>
+          <View style={[s.row, { marginTop: 12, alignItems: 'center' }]}>
+            <Btn label="−" onPress={() => save({ ...prefs, perDay: Math.max(2, prefs.perDay - 1) })} />
+            <Text style={[s.metric, { marginHorizontal: 14, fontSize: 18 }]}>
+              {prefs.perDay} / day
+            </Text>
+            <Btn label="＋" onPress={() => save({ ...prefs, perDay: Math.min(12, prefs.perDay + 1) })} />
+          </View>
+
+          <TimeRow
+            label="⏰ First reminder"
+            min={prefs.startMin}
+            onChange={(m) => save({
+              ...prefs,
+              startMin: Math.max(0, Math.min(prefs.endMin - STEP, m)),
+            })}
+          />
+          <TimeRow
+            label="🌙 Last reminder"
+            min={prefs.endMin}
+            onChange={(m) => save({
+              ...prefs,
+              endMin: Math.min(23 * 60 + 30, Math.max(prefs.startMin + STEP, m)),
+            })}
+          />
+
+          <View style={[s.row, { marginTop: 12, flexWrap: 'wrap' }]}>
+            {times.map((t) => (
+              <View key={t} style={s.timeChip}>
+                <Text style={{ color: C.mint, fontWeight: '700', fontSize: 12 }}>{fmtClock(t)}</Text>
+              </View>
+            ))}
+          </View>
+          <Text style={{ color: C.muted, fontSize: 11, marginTop: 10 }}>
+            Times follow your phone’s clock and timezone automatically.
           </Text>
-          <Btn label="＋" onPress={() => save(true, Math.min(12, perDay + 1))} />
-        </View>
+        </>
       )}
     </GlowPanel>
+  );
+}
+
+function TimeRow({ label, min, onChange }: {
+  label: string; min: number; onChange: (m: number) => void;
+}) {
+  return (
+    <View style={[s.row, { marginTop: 12, alignItems: 'center', justifyContent: 'space-between' }]}>
+      <Text style={{ color: C.text, fontWeight: '700', flex: 1 }}>{label}</Text>
+      <Btn label="−" onPress={() => onChange(min - 30)} />
+      <Text style={[s.metric, { marginHorizontal: 10, fontSize: 16, minWidth: 84, textAlign: 'center' }]}>
+        {fmtClock(min)}
+      </Text>
+      <Btn label="＋" onPress={() => onChange(min + 30)} />
+    </View>
   );
 }
 
@@ -198,5 +247,10 @@ const s = StyleSheet.create({
   seg: {
     backgroundColor: C.surfaceAlt, borderRadius: 12,
     paddingHorizontal: 18, paddingVertical: 10,
+  },
+  timeChip: {
+    backgroundColor: 'rgba(37,199,224,0.12)', borderRadius: 10,
+    borderWidth: 1, borderColor: 'rgba(37,199,224,0.35)',
+    paddingHorizontal: 10, paddingVertical: 5,
   },
 });
