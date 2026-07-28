@@ -224,25 +224,36 @@ export default function Onboarding() {
             <Text style={s.sub}>Based on everything you told us. Adjust it if you like.</Text>
             <GlowCard selected grad={[C.mint, C.primary]}>
               <Text style={[s.big, { fontSize: 44, textAlign: 'center' }]}>{fmtVol(goal, false)}</Text>
-              <View style={s.goalCtl}>
-                <RoundBtn label="−100" onPress={() => { setCustomGoal(Math.max(500, goal - 100)); setGoalText(null); }} />
-                <RoundBtn label="+100" onPress={() => { setCustomGoal(Math.min(6000, goal + 100)); setGoalText(null); }} />
+              <View style={s.goalRow}>
+                <Pressable
+                  style={s.goalBtn}
+                  onPress={() => { setCustomGoal(Math.max(500, goal - 100)); setGoalText(null); }}
+                >
+                  <Text style={s.goalBtnTxt}>−</Text>
+                </Pressable>
+                <TextInput
+                  style={s.goalField}
+                  value={goalText ?? String(goal)}
+                  onChangeText={(t) => {
+                    setGoalText(t);
+                    const n = parseInt(t, 10);
+                    if (!Number.isNaN(n)) setCustomGoal(Math.min(6000, Math.max(500, n)));
+                  }}
+                  onEndEditing={() => setGoalText(null)}
+                  keyboardType="number-pad"
+                  maxLength={4}
+                  placeholderTextColor={C.muted}
+                />
+                <Pressable
+                  style={s.goalBtn}
+                  onPress={() => { setCustomGoal(Math.min(6000, goal + 100)); setGoalText(null); }}
+                >
+                  <Text style={s.goalBtnTxt}>＋</Text>
+                </Pressable>
               </View>
-              <TextInput
-                style={s.goalInput}
-                value={goalText ?? String(goal)}
-                onChangeText={(t) => {
-                  setGoalText(t);
-                  const n = parseInt(t, 10);
-                  if (!Number.isNaN(n)) setCustomGoal(Math.min(6000, Math.max(500, n)));
-                }}
-                onEndEditing={() => setGoalText(null)}
-                keyboardType="number-pad"
-                maxLength={4}
-                placeholder="Type exact amount (ml)"
-                placeholderTextColor={C.muted}
-              />
-              <Text style={[s.cardDesc, { textAlign: 'center' }]}>ml per day · 500–6000</Text>
+              <Text style={[s.cardDesc, { textAlign: 'center' }]}>
+                ml per day · ±100 or type exact · 500–6000
+              </Text>
               {customGoal != null && customGoal !== recommended && (
                 <Pressable onPress={() => { setCustomGoal(null); setGoalText(null); }}>
                   <Text style={{ color: C.mint, textAlign: 'center', marginTop: 10, fontWeight: '600' }}>
@@ -408,16 +419,22 @@ const s = StyleSheet.create({
     paddingHorizontal: 12, paddingVertical: 6,
   },
   skip: { alignItems: 'center', padding: 12 },
-  goalInput: {
-    backgroundColor: C.surfaceAlt, color: C.text, borderRadius: 12,
-    paddingHorizontal: 14, paddingVertical: 10, marginTop: 12,
-    fontWeight: '700', textAlign: 'center', fontSize: 16,
+  goalRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 14,
+  },
+  goalBtn: {
+    width: 54, height: 54, borderRadius: 16, backgroundColor: C.surfaceAlt,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  goalBtnTxt: { color: C.primary, fontSize: 26, fontWeight: '800', lineHeight: 30 },
+  goalField: {
+    flex: 1, backgroundColor: C.surfaceAlt, color: C.text, borderRadius: 16,
+    paddingVertical: 14, fontWeight: '800', textAlign: 'center', fontSize: 18,
   },
   cardEmoji: { fontSize: 30, marginBottom: 6 },
   cardTitle: { color: '#FFFFFF', fontWeight: '800', fontSize: 16 },
   cardDesc: { color: C.muted, marginTop: 3, lineHeight: 18 },
   big: { color: C.text, fontSize: 34, fontWeight: '900', marginVertical: 4 },
-  goalCtl: { flexDirection: 'row', justifyContent: 'center', gap: 14, marginTop: 10 },
   cta: { borderRadius: 18, padding: 17, alignItems: 'center' },
   ctaTxt: { color: '#fff', fontWeight: '800', fontSize: 16 },
 });
