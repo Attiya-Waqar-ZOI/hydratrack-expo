@@ -3,14 +3,14 @@
 // second ink used only for warnings. Serif throughout, soft rounded corners,
 // hairline dividers instead of boxed cards.
 export const C = {
-  bg: '#f2f8fb',        // airy paper with a breath of water blue
-  surface: '#e9f2f7',   // card / quiet fill, cool-tinted
+  bg: '#fbfcfd',        // near-white paper, just off pure white
+  surface: '#eff2f5',   // card / quiet fill, soft light grey
   text: '#201e1d',      // ink
   muted: '#605d5d',     // neutral-700, secondary text
   faint: '#9b9797',     // neutral-500, small labels and ticks
   divider: 'rgba(32,30,29,0.16)',
-  neutral200: '#e2edf3',
-  neutral300: '#d3e1e8',
+  neutral200: '#e7ebef',
+  neutral300: '#d8dee3',
   neutral400: '#bab6b6',
   neutral600: '#7d7979',
   ink: '#2d2b2b',       // inverse surface (snackbar)
