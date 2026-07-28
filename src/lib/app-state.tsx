@@ -4,7 +4,8 @@ import React, { createContext, useCallback, useContext, useMemo, useState } from
 
 import { DayContextRow, LogRow, Profile, makeLog, store } from './db';
 import {
-  ActivityLevel, Beverage, Climate, EnvBoost, envBoost, goalBreakdown, todayKey,
+  ActivityLevel, Beverage, Climate, EnvBoost, Gender, envBoost, recommendedGoalMl,
+  todayKey,
 } from './engines';
 
 interface AppState {
@@ -130,6 +131,8 @@ async function detectGeoWeather(): Promise<GeoWeather | null> {
 }
 
 // ── Convenience: goal from profile fields ──────────────────────────
-export function autoGoal(weightKg: number, activity: ActivityLevel, climate: Climate, bmi: number): number {
-  return goalBreakdown(weightKg, activity, climate, bmi).totalMl;
+export function autoGoal(
+  weightKg: number, activity: ActivityLevel, climate: Climate, gender: Gender, age: number,
+): number {
+  return recommendedGoalMl(weightKg, activity, climate, gender, age);
 }

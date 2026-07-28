@@ -77,10 +77,10 @@ export function fmtClock(min: number): string {
 }
 
 const MESSAGES = [
-  { title: '💧 Water break', body: 'A glass now keeps you on pace for today’s goal.' },
-  { title: '🥤 Hydration check', body: 'When did you last drink? Log it and keep the streak alive.' },
-  { title: '✨ Sip reminder', body: 'Small sips, big wins. Top up now.' },
-  { title: '🌊 Stay ahead', body: 'Don’t let thirst catch you first — drink a little now.' },
+  { title: 'Water break', body: 'A glass now keeps you on pace' },
+  { title: 'Hydration check', body: 'When did you last drink?' },
+  { title: 'Sip reminder', body: 'Time for a top up' },
+  { title: 'Stay ahead', body: 'Drink a little now' },
 ];
 
 export async function resyncReminders(

@@ -1,14 +1,17 @@
 // HydraTrack domain engines — pure TypeScript ports of the Flutter/Dart
 // originals. No React/Expo imports: fully testable logic.
 
-export type Gender = 'male' | 'female';
+export type Gender = 'male' | 'female' | 'nonbinary' | 'na';
 export type ActivityLevel = 'sedentary' | 'light' | 'moderate' | 'high' | 'athlete';
 export type Climate = 'cold' | 'moderate' | 'hot';
 export type BmiCategory = 'underweight' | 'normal' | 'overweight' | 'obese';
 
 export const ACTIVITY_LABELS: Record<ActivityLevel, string> = {
-  sedentary: 'Sedentary', light: 'Lightly Active', moderate: 'Moderately Active',
-  high: 'Very Active', athlete: 'Athlete',
+  sedentary: 'Sedentary', light: 'Lightly active', moderate: 'Moderately active',
+  high: 'Very active', athlete: 'Athlete',
+};
+export const GENDER_LABELS: Record<Gender, string> = {
+  male: 'Male', female: 'Female', nonbinary: 'Non-binary', na: 'Rather not say',
 };
 export const ACTIVITY_BONUS: Record<ActivityLevel, number> = {
   sedentary: 0, light: 300, moderate: 500, high: 750, athlete: 1000,
@@ -51,6 +54,26 @@ export function goalBreakdown(
   return { baseMl, activityMl, climateMl, bmiMl, totalMl: baseMl + activityMl + climateMl + bmiMl };
 }
 
+// ── Recommended goal (Broadsheet onboarding formula) ───────────────
+// 32 ml/kg scaled by activity, climate and sex, eased after 55,
+// clamped to a sane range and rounded to 50 ml.
+export const ACTIVITY_MULT: Record<ActivityLevel, number> = {
+  sedentary: 1.0, light: 1.08, moderate: 1.16, high: 1.26, athlete: 1.38,
+};
+export const CLIMATE_MULT: Record<Climate, number> = { cold: 0.96, moderate: 1.0, hot: 1.12 };
+export const GENDER_MULT: Record<Gender, number> = {
+  male: 1.05, female: 0.97, nonbinary: 1.0, na: 1.0,
+};
+
+export function recommendedGoalMl(
+  weightKg: number, activity: ActivityLevel, climate: Climate, gender: Gender, age: number,
+): number {
+  const base = weightKg * 32;
+  const ageF = age > 55 ? 0.95 : 1;
+  const ml = base * ACTIVITY_MULT[activity] * CLIMATE_MULT[climate] * (GENDER_MULT[gender] ?? 1) * ageF;
+  return Math.max(1500, Math.min(5000, Math.round(ml / 50) * 50));
+}
+
 // ── Environment boost (temperature + altitude + dry air) ──────────
 export interface EnvBoost { tempMl: number; altitudeMl: number; aridityMl: number; totalMl: number }
 
@@ -83,10 +106,10 @@ export function hydrationPace(
   const expectedMl = Math.round(goalMl * frac);
   const deltaMl = actualMl - expectedMl;
   let status: string;
-  if (actualMl >= goalMl) status = 'Goal complete — fully topped up! 💧';
-  else if (frac <= 0) status = 'Your day is just starting — sip early.';
-  else if (deltaMl >= 0) status = `You're ${deltaMl} ml ahead of pace — great rhythm!`;
-  else status = `You're ${-deltaMl} ml behind pace — a glass now keeps you on track.`;
+  if (actualMl >= goalMl) status = 'Goal complete';
+  else if (frac <= 0) status = 'Day just started';
+  else if (deltaMl >= 0) status = `${deltaMl} ml ahead of pace`;
+  else status = `${-deltaMl} ml behind pace`;
   return { expectedMl, deltaMl, onTrack: deltaMl >= 0, status };
 }
 
@@ -100,31 +123,32 @@ export function catchUpPlan(remainingMl: number, nowMin: number, sleepMin: numbe
   return {
     servings, intervalMin, rushed: intervalMin > 0 && intervalMin < 20,
     message: minutesLeft <= 0
-      ? `${remainingMl} ml left, but your day's nearly over — sip what you can.`
-      : `Drink a ${perServingMl} ml serving ${cadence} (${servings} to go) to finish by bedtime.`,
+      ? `${remainingMl} ml left today. Sip what you can.`
+      : `${perServingMl} ml ${cadence}, ${servings} to go`,
   };
 }
 
 // ── Beverages ──────────────────────────────────────────────────────
+// `icon` is a MaterialCommunityIcons glyph name (rendered by the UI layer).
 export interface Beverage {
-  id: string; name: string; factor: number; caffeinePer100: number; emoji: string; color: string;
+  id: string; name: string; factor: number; caffeinePer100: number; icon: string;
 }
 
 export const BEVERAGES: Beverage[] = [
-  { id: 'water', name: 'Water', factor: 1.0, caffeinePer100: 0, emoji: '💧', color: '#25C7E0' },
-  { id: 'sparkling', name: 'Sparkling', factor: 1.0, caffeinePer100: 0, emoji: '🫧', color: '#7BE8F5' },
-  { id: 'coconut', name: 'Coconut', factor: 1.1, caffeinePer100: 0, emoji: '🥥', color: '#9CCC65' },
-  { id: 'sports', name: 'Sports', factor: 1.0, caffeinePer100: 0, emoji: '🏃', color: '#26C6DA' },
-  { id: 'herbal', name: 'Herbal tea', factor: 1.0, caffeinePer100: 0, emoji: '🌿', color: '#66BB6A' },
-  { id: 'tea', name: 'Tea', factor: 0.9, caffeinePer100: 20, emoji: '🍵', color: '#F2A65A' },
-  { id: 'milk', name: 'Milk', factor: 0.9, caffeinePer100: 0, emoji: '🥛', color: '#BFD7EA' },
-  { id: 'soup', name: 'Soup', factor: 0.9, caffeinePer100: 0, emoji: '🍜', color: '#E0A458' },
-  { id: 'juice', name: 'Juice', factor: 0.85, caffeinePer100: 0, emoji: '🧃', color: '#FFB454' },
-  { id: 'smoothie', name: 'Smoothie', factor: 0.85, caffeinePer100: 0, emoji: '🥤', color: '#EC7FA9' },
-  { id: 'coffee', name: 'Coffee', factor: 0.8, caffeinePer100: 40, emoji: '☕', color: '#E8845A' },
-  { id: 'soda', name: 'Soda', factor: 0.7, caffeinePer100: 10, emoji: '🥫', color: '#1B8FA6' },
-  { id: 'energy', name: 'Energy', factor: 0.7, caffeinePer100: 32, emoji: '⚡', color: '#F06277' },
-  { id: 'alcohol', name: 'Beer/Wine', factor: 0.5, caffeinePer100: 0, emoji: '🍺', color: '#D4A017' },
+  { id: 'water', name: 'Water', factor: 1.0, caffeinePer100: 0, icon: 'water-outline' },
+  { id: 'sparkling', name: 'Sparkling water', factor: 1.0, caffeinePer100: 0, icon: 'glass-flute' },
+  { id: 'herbal', name: 'Herbal tea', factor: 1.0, caffeinePer100: 0, icon: 'leaf' },
+  { id: 'coconut', name: 'Coconut water', factor: 1.1, caffeinePer100: 0, icon: 'palm-tree' },
+  { id: 'sports', name: 'Sports drink', factor: 1.0, caffeinePer100: 0, icon: 'bottle-soda-outline' },
+  { id: 'milk', name: 'Milk', factor: 0.9, caffeinePer100: 0, icon: 'cup-outline' },
+  { id: 'tea', name: 'Tea', factor: 0.9, caffeinePer100: 20, icon: 'tea-outline' },
+  { id: 'soup', name: 'Soup', factor: 0.9, caffeinePer100: 0, icon: 'bowl-mix-outline' },
+  { id: 'juice', name: 'Juice', factor: 0.85, caffeinePer100: 0, icon: 'fruit-citrus' },
+  { id: 'smoothie', name: 'Smoothie', factor: 0.85, caffeinePer100: 0, icon: 'blender-outline' },
+  { id: 'coffee', name: 'Coffee', factor: 0.8, caffeinePer100: 40, icon: 'coffee-outline' },
+  { id: 'soda', name: 'Soda', factor: 0.7, caffeinePer100: 10, icon: 'bottle-soda-classic-outline' },
+  { id: 'energy', name: 'Energy drink', factor: 0.7, caffeinePer100: 32, icon: 'lightning-bolt-outline' },
+  { id: 'alcohol', name: 'Beer or wine', factor: 0.5, caffeinePer100: 0, icon: 'glass-wine' },
 ];
 
 export const beverageById = (id: string): Beverage =>
@@ -136,12 +160,12 @@ export const QUICK_AMOUNTS = [100, 150, 200, 250, 350, 500, 750];
 export function recommendation(currentMl: number, goalMl: number, hour: number, streak: number): string {
   const progress = goalMl === 0 ? 0 : currentMl / goalMl;
   const remaining = Math.max(0, goalMl - currentMl);
-  if (streak >= 7) return `🔥 ${streak}-day hydration streak! Keep it going.`;
-  if (progress >= 1) return 'Goal smashed! 🎉 Great hydration today.';
+  if (streak >= 7) return `${streak}-day streak`;
+  if (progress >= 1) return 'Goal reached';
   if (progress < 0.35 && hour >= 12)
-    return `You're behind your hydration goal by ${remaining} ml. Drink one glass now to catch up.`;
-  if (hour < 10) return 'Start your day strong — a glass of water now sets the pace.';
-  return `${remaining} ml remaining to reach today's target.`;
+    return `${remaining} ml behind. A glass now helps.`;
+  if (hour < 10) return 'Start with a glass of water';
+  return `${remaining} ml to go`;
 }
 
 // ── Formatting ─────────────────────────────────────────────────────
