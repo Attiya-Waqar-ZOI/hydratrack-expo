@@ -1,13 +1,16 @@
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import React from 'react';
+import { View } from 'react-native';
 
 import { AppStateProvider } from '@/lib/app-state';
+import { ToastHost } from '@/lib/toast';
 import { C } from '@/lib/theme';
 
 export default function RootLayout() {
   return (
     <AppStateProvider>
+      <View style={{ flex: 1 }}>
       <StatusBar style="light" />
       <Stack
         screenOptions={{
@@ -29,6 +32,8 @@ export default function RootLayout() {
           }}
         />
       </Stack>
+      <ToastHost />
+      </View>
     </AppStateProvider>
   );
 }

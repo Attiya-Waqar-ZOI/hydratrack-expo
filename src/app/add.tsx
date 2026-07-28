@@ -6,6 +6,7 @@ import {
 
 import { useApp } from '@/lib/app-state';
 import { BEVERAGES, beverageById, fmtVol } from '@/lib/engines';
+import { showToast } from '@/lib/toast';
 import { C, card } from '@/lib/theme';
 
 const AMOUNTS = [50, 100, 150, 200, 250, 350, 500, 750, 1000];
@@ -25,8 +26,12 @@ export default function AddDrink() {
 
   const log = () => {
     const at = hoursAgo > 0 ? new Date(Date.now() - hoursAgo * 3600_000) : undefined;
-    app.addDrink(effVolume, bev, at);
+    const id = app.addDrink(effVolume, bev, at);
     router.back();
+    showToast(`${bev.emoji} ${fmtVol(effVolume, !!useOz)} ${bev.name} added`, {
+      actionLabel: 'Undo',
+      onAction: () => app.undo(id),
+    });
   };
 
   return (

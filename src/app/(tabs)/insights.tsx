@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import React from 'react';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useApp } from '@/lib/app-state';
-import { catchUpPlan, hydrationPace, recommendation, tempBoostMl } from '@/lib/engines';
+import { catchUpPlan, hydrationPace, recommendation } from '@/lib/engines';
 import { C, card } from '@/lib/theme';
 
 /// Everything analytical that used to crowd the home screen: pace coaching,
@@ -53,64 +53,8 @@ export default function Insights() {
           </Text>
         </View>
 
-        <WeatherCard />
       </ScrollView>
     </SafeAreaView>
-  );
-}
-
-function WeatherCard() {
-  const app = useApp();
-  const [busy, setBusy] = useState(false);
-  const ctx = app.dayContext;
-  const boost = app.env.totalMl;
-
-  const detect = async () => {
-    setBusy(true);
-    const result = await app.detectEnvironment();
-    setBusy(false);
-    if (!result) Alert.alert('Location unavailable', 'Check permissions, or set weather manually.');
-  };
-
-  const manual = [
-    { label: 'Comfortable', t: 20 }, { label: 'Warm', t: 28 },
-    { label: 'Hot', t: 35 }, { label: 'Scorching', t: 40 },
-  ];
-
-  return (
-    <View style={card}>
-      <View style={s.rowBetween}>
-        <Text style={s.cardTitle}>🌡 Weather & location</Text>
-        {boost > 0 && <Text style={{ color: C.gold, fontWeight: '800' }}>+{boost} ml goal</Text>}
-      </View>
-      <Text style={s.sub}>
-        {ctx?.place
-          ? `📍 ${ctx.place}${ctx.tempC != null ? ` · ${Math.round(ctx.tempC)}°C` : ''}`
-          : 'Detect your location for live weather-adjusted goals.'}
-      </Text>
-      {(app.env.altitudeMl > 0 || app.env.aridityMl > 0) && (
-        <Text style={s.sub}>
-          {app.env.altitudeMl > 0 ? `+${app.env.altitudeMl} ml altitude ` : ''}
-          {app.env.aridityMl > 0 ? `+${app.env.aridityMl} ml dry air` : ''}
-        </Text>
-      )}
-      <Pressable style={s.detectBtn} onPress={detect} disabled={busy}>
-        <Text style={{ color: C.primary, fontWeight: '700' }}>
-          {busy ? 'Detecting…' : ctx?.place ? '📍 Update' : '📍 Detect'}
-        </Text>
-      </Pressable>
-      <View style={[s.chips, { marginTop: 10 }]}>
-        {manual.map((m) => (
-          <Pressable
-            key={m.label}
-            style={[s.chip, app.env.tempMl > 0 && tempBoostMl(m.t) === app.env.tempMl && s.chipOn]}
-            onPress={() => app.setManualTemp(m.t)}
-          >
-            <Text style={s.chipTxt}>{m.label}</Text>
-          </Pressable>
-        ))}
-      </View>
-    </View>
   );
 }
 

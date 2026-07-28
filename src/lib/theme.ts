@@ -16,10 +16,17 @@ export const C = {
   danger: '#F06277',
 };
 
+// Luminous "neon-edge" base card: subtle glowing border + soft colored
+// shadow so every surface reads like the dark-glow design language.
 export const card = {
   backgroundColor: C.surface,
   borderRadius: 24,
   borderWidth: 1,
-  borderColor: 'rgba(255,255,255,0.06)',
+  borderColor: 'rgba(79,124,255,0.22)',
   padding: 18,
+  shadowColor: C.primary,
+  shadowOpacity: 0.22,
+  shadowRadius: 12,
+  shadowOffset: { width: 0, height: 3 },
+  elevation: 5,
 } as const;

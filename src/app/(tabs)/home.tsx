@@ -1,20 +1,20 @@
 import { router } from 'expo-router';
 import React, { useState } from 'react';
 import {
-  Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View,
+  Pressable, ScrollView, StyleSheet, Text, TextInput, View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import Svg, { Circle } from 'react-native-svg';
+import Svg, { Circle, Defs, LinearGradient as SvgGradient, Stop } from 'react-native-svg';
 
 import { useApp } from '@/lib/app-state';
 import { beverageById, fmtVol } from '@/lib/engines';
-import { C, card } from '@/lib/theme';
+import { GlowPanel } from '@/lib/glow';
+import { showToast } from '@/lib/toast';
+import { C } from '@/lib/theme';
+import { WeatherCard } from '@/lib/weather-card';
 
 const QUICK = [150, 250, 350, 500];
 
-/// Minimal home: today's progress vs target + drink logging. Everything
-/// analytical lives in the Insights tab; the day note hides behind the
-/// top-right icon.
 export default function Home() {
   const app = useApp();
   const [showNote, setShowNote] = useState(false);
@@ -35,10 +35,10 @@ export default function Home() {
 
   const log = (ml: number) => {
     const id = app.addDrink(ml, beverageById('water'));
-    Alert.alert('Logged 💧', `+${fmtVol(ml, useOz)} water`, [
-      { text: 'Undo', onPress: () => app.undo(id) },
-      { text: 'OK' },
-    ]);
+    showToast(`💧 ${fmtVol(ml, useOz)} added`, {
+      actionLabel: 'Undo',
+      onAction: () => app.undo(id),
+    });
   };
 
   const logCustom = () => {
@@ -51,8 +51,7 @@ export default function Home() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: C.bg }}>
-      <ScrollView contentContainerStyle={{ padding: 20, gap: 16 }}>
-        {/* Header: greeting + note icon */}
+      <ScrollView contentContainerStyle={{ padding: 20, gap: 16, paddingBottom: 28 }}>
         <View style={s.headerRow}>
           <View>
             <Text style={{ color: C.muted }}>{greeting}</Text>
@@ -69,28 +68,32 @@ export default function Home() {
 
         {showNote && <NoteEditor onDone={() => setShowNote(false)} />}
 
-        {/* Today's progress */}
-        <View style={[card, { alignItems: 'center', paddingVertical: 30 }]}>
+        {/* Hero: gradient progress ring in a glowing panel */}
+        <GlowPanel glow colors={['rgba(79,224,208,0.75)', 'rgba(79,124,255,0.75)']} style={{ alignItems: 'center', paddingVertical: 28 }}>
           <Ring progress={progress} />
           <Text style={s.totals}>
-            {fmtVol(total, useOz)} / {fmtVol(goal, useOz)}
+            {fmtVol(total, useOz)} <Text style={{ color: C.muted }}>of {fmtVol(goal, useOz)}</Text>
           </Text>
           <Text style={s.remaining}>
             {remaining === 0 ? '🎉 Goal reached — nicely done!' : `${fmtVol(remaining, useOz)} to go`}
           </Text>
-        </View>
+        </GlowPanel>
 
         {/* Add drink */}
-        <View style={card}>
+        <GlowPanel colors={['rgba(79,124,255,0.45)', 'rgba(139,124,246,0.45)']}>
           <Text style={s.cardTitle}>Add a drink</Text>
           <View style={s.chips}>
-            {QUICK.map((ml) => (
-              <Pressable key={ml} style={s.chip} onPress={() => log(ml)}>
+            {QUICK.map((ml, i) => (
+              <Pressable
+                key={ml}
+                style={[s.chip, { borderColor: CHIP_COLORS[i % CHIP_COLORS.length] }]}
+                onPress={() => log(ml)}
+              >
                 <Text style={s.chipTxt}>💧 {fmtVol(ml, useOz)}</Text>
               </Pressable>
             ))}
             <Pressable
-              style={[s.chip, customOpen && { backgroundColor: C.primary }]}
+              style={[s.chip, { borderColor: C.gold }, customOpen && { backgroundColor: C.primary }]}
               onPress={() => setCustomOpen(!customOpen)}
             >
               <Text style={[s.chipTxt, customOpen && { color: '#fff' }]}>✏️ Custom</Text>
@@ -118,17 +121,22 @@ export default function Home() {
               ☕ Other drinks & earlier times →
             </Text>
           </Pressable>
-        </View>
+        </GlowPanel>
+
+        {/* Climate / weather — fills the fold and drives the goal */}
+        <WeatherCard />
       </ScrollView>
     </SafeAreaView>
   );
 }
 
+const CHIP_COLORS = ['rgba(79,224,208,0.6)', 'rgba(79,124,255,0.6)', 'rgba(139,124,246,0.6)', 'rgba(236,90,141,0.6)'];
+
 function NoteEditor({ onDone }: { onDone: () => void }) {
   const app = useApp();
   const [draft, setDraft] = useState(app.dayContext?.note ?? '');
   return (
-    <View style={card}>
+    <GlowPanel colors={['rgba(79,124,255,0.5)', 'rgba(139,124,246,0.5)']}>
       <Text style={s.cardTitle}>📝 Note for today</Text>
       <Text style={{ color: C.muted, fontSize: 12, marginBottom: 8 }}>
         Context you’ll want later — “traveling to Oman”, “fasting”, “long run”.
@@ -149,27 +157,38 @@ function NoteEditor({ onDone }: { onDone: () => void }) {
         </Pressable>
         <Pressable
           style={[s.noteBtnSm, { backgroundColor: C.primary }]}
-          onPress={() => { app.saveNote(draft.trim()); onDone(); }}
+          onPress={() => {
+            app.saveNote(draft.trim());
+            onDone();
+            showToast('📌 Note saved for today');
+          }}
         >
           <Text style={{ color: '#fff', fontWeight: '700' }}>Save</Text>
         </Pressable>
       </View>
-    </View>
+    </GlowPanel>
   );
 }
 
 function Ring({ progress }: { progress: number }) {
-  const size = 230;
+  const size = 220;
   const stroke = 18;
   const r = (size - stroke) / 2;
   const circ = 2 * Math.PI * r;
   return (
     <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}>
       <Svg width={size} height={size}>
+        <Defs>
+          <SvgGradient id="ring" x1="0" y1="0" x2="1" y2="1">
+            <Stop offset="0" stopColor={C.mint} />
+            <Stop offset="0.6" stopColor={C.primary} />
+            <Stop offset="1" stopColor={C.grape} />
+          </SvgGradient>
+        </Defs>
         <Circle cx={size / 2} cy={size / 2} r={r}
           stroke={C.surfaceAlt} strokeWidth={stroke} fill="none" />
         <Circle cx={size / 2} cy={size / 2} r={r}
-          stroke={C.primary} strokeWidth={stroke} fill="none"
+          stroke="url(#ring)" strokeWidth={stroke} fill="none"
           strokeLinecap="round"
           strokeDasharray={`${circ}`}
           strokeDashoffset={circ * (1 - progress)}
@@ -197,7 +216,7 @@ const s = StyleSheet.create({
   cardTitle: { color: C.text, fontWeight: '800', marginBottom: 10 },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   chip: {
-    backgroundColor: C.surfaceAlt, borderRadius: 14,
+    backgroundColor: C.surfaceAlt, borderRadius: 14, borderWidth: 1,
     paddingHorizontal: 14, paddingVertical: 10,
   },
   chipTxt: { color: C.text, fontWeight: '600' },
