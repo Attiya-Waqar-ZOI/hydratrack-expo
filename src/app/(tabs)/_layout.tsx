@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Tabs, router } from 'expo-router';
 import React from 'react';
@@ -5,11 +6,9 @@ import { Pressable, Text, View } from 'react-native';
 
 import { C } from '@/lib/theme';
 
-const icon = (emoji: string) =>
-  function TabIcon({ focused }: { focused: boolean }) {
-    return (
-      <Text style={{ fontSize: 21, opacity: focused ? 1 : 0.4 }}>{emoji}</Text>
-    );
+const icon = (name: keyof typeof Ionicons.glyphMap) =>
+  function TabIcon({ color }: { color: string }) {
+    return <Ionicons name={name} size={25} color={color} />;
   };
 
 /// The raised circular action button in the middle of the dock —
@@ -57,21 +56,21 @@ export default function TabsLayout() {
           shadowColor: '#000', shadowOpacity: 0.5, shadowRadius: 18,
           shadowOffset: { width: 0, height: 6 }, elevation: 14,
         },
-        tabBarItemStyle: { paddingTop: 2 },
-        tabBarLabelStyle: { fontWeight: '700', fontSize: 10 },
+        tabBarShowLabel: false,
+        tabBarItemStyle: { paddingTop: 6 },
         tabBarActiveTintColor: C.mint,
-        tabBarInactiveTintColor: C.muted,
+        tabBarInactiveTintColor: '#6E7681',
         sceneStyle: { backgroundColor: C.bg },
       }}
     >
-      <Tabs.Screen name="home" options={{ title: 'Home', tabBarIcon: icon('💧') }} />
-      <Tabs.Screen name="insights" options={{ title: 'Insights', tabBarIcon: icon('✨') }} />
+      <Tabs.Screen name="home" options={{ title: 'Home', tabBarIcon: icon('home') }} />
+      <Tabs.Screen name="insights" options={{ title: 'Insights', tabBarIcon: icon('stats-chart') }} />
       <Tabs.Screen
         name="add-action"
         options={{ title: '', tabBarButton: AddButton }}
       />
-      <Tabs.Screen name="history" options={{ title: 'History', tabBarIcon: icon('📆') }} />
-      <Tabs.Screen name="you" options={{ title: 'You', tabBarIcon: icon('🧬') }} />
+      <Tabs.Screen name="history" options={{ title: 'History', tabBarIcon: icon('calendar') }} />
+      <Tabs.Screen name="you" options={{ title: 'You', tabBarIcon: icon('person-circle') }} />
     </Tabs>
   );
 }
