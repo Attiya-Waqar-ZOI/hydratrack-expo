@@ -601,7 +601,7 @@ const s = StyleSheet.create({
   stepLabel: { marginLeft: 'auto', fontFamily: F.body, fontSize: 12.5, letterSpacing: 2, color: C.faint },
   track: { height: 3, borderRadius: 2, backgroundColor: C.neutral300, overflow: 'hidden' },
   fill: { height: 3, borderRadius: 2, backgroundColor: C.accent },
-  h1o: { fontFamily: F.heading, fontSize: 30, lineHeight: 33, letterSpacing: -0.8, color: C.text },
+  h1o: { fontFamily: F.heading, fontSize: 36, lineHeight: 40, letterSpacing: -1.1, color: C.text },
   fieldLabel: { fontFamily: F.heading, fontSize: 18, color: C.muted, marginBottom: 4 },
   hr: { height: 1, backgroundColor: C.divider, marginVertical: -6 },
   sexChip: {
