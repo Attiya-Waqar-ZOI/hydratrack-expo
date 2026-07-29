@@ -66,11 +66,13 @@ export default function Onboarding() {
   const [wtImp, setWtImp] = useState(false);
   const [activity, setActivity] = useState<ActivityLevel>((existing?.activity as ActivityLevel) ?? 'moderate');
   const [climate, setClimate] = useState<Climate>((existing?.climate as Climate) ?? 'moderate');
-  const [location, setLocation] = useState<'allow' | 'skip'>(
-    editing && app.dayContext?.place ? 'allow' : 'skip',
+  // null = not answered yet; the step-4 Continue stays disabled until both
+  // permissions have an explicit answer.
+  const [location, setLocation] = useState<'allow' | 'skip' | null>(
+    editing ? (app.dayContext?.place ? 'allow' : 'skip') : null,
   );
   const [locBusy, setLocBusy] = useState(false);
-  const [stepsChoice, setStepsChoice] = useState<'allow' | 'skip'>('skip');
+  const [stepsChoice, setStepsChoice] = useState<'allow' | 'skip' | null>(null);
   const [stepsBusy, setStepsBusy] = useState(false);
   const [detected, setDetected] = useState<string | null>(
     editing && app.dayContext?.place
@@ -97,19 +99,24 @@ export default function Onboarding() {
   const shownStep = skipClimate && step === 6 ? 5 : step;
 
   useEffect(() => { scroll.current?.scrollTo({ y: 0, animated: false }); }, [step]);
-  useEffect(() => { stepsEnabled().then((on) => setStepsChoice(on ? 'allow' : 'skip')); }, []);
+  useEffect(() => {
+    if (editing) stepsEnabled().then((on) => setStepsChoice(on ? 'allow' : 'skip'));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const askSteps = async () => {
     if (stepsBusy) return;
-    if (stepsChoice === 'allow') { setStepsChoice('skip'); return; }
     setStepsBusy(true);
     const granted = await requestStepPermission();
     setStepsBusy(false);
     setStepsChoice(granted ? 'allow' : 'skip');
   };
 
+  const permsPending = step === 4 && (location == null || stepsChoice == null);
+
   const next = () => {
     if (step === 1 && nameMissing) { setNameTouched(true); return; }
+    if (permsPending) return;
     if (last) { finish(); return; }
     if (step === 4 && skipClimate) { setStep(6); return; }
     setStep(step + 1);
@@ -324,30 +331,34 @@ export default function Onboarding() {
             <View>
               <Text style={s.h1o}>A goal that{'\n'}follows your day</Text>
               <Text style={[T.body, { fontSize: 15, marginTop: 6, maxWidth: 290 }]}>
-                Optional. Tap to allow — tap again to turn off.
+                Two optional boosts. Answer each — allow or skip — to continue.
               </Text>
             </View>
             <View style={{ gap: 12 }}>
-              <OptionCard
+              <PermissionCard
                 label="Current weather" emoji="🌤️"
                 desc={locBusy
                   ? 'Asking for permission…'
                   : location === 'allow'
                     ? detected ?? 'On — heat, dry air and altitude raise your goal.'
                     : 'Uses your location. Hot or dry days raise your goal.'}
-                selected={location === 'allow'}
-                onPress={location === 'allow' ? () => setLocation('skip') : askLocation}
+                state={location} busy={locBusy}
+                onAllow={askLocation}
+                onSkip={() => setLocation('skip')}
               />
-              <OptionCard
-                label="Your steps" emoji="🚶"
-                desc={stepsBusy
-                  ? 'Asking for permission…'
-                  : stepsChoice === 'allow'
-                    ? 'On — active days raise your goal.'
-                    : 'Uses the motion sensor. Walk a lot, drink a bit more.'}
-                selected={stepsChoice === 'allow'}
-                onPress={askSteps}
-              />
+              {location != null && (
+                <PermissionCard
+                  label="Your steps" emoji="🚶"
+                  desc={stepsBusy
+                    ? 'Asking for permission…'
+                    : stepsChoice === 'allow'
+                      ? 'On — active days raise your goal.'
+                      : 'Uses the motion sensor. Walk a lot, drink a bit more.'}
+                  state={stepsChoice} busy={stepsBusy}
+                  onAllow={askSteps}
+                  onSkip={() => setStepsChoice('skip')}
+                />
+              )}
             </View>
             <Text style={[T.body, { fontSize: 14 }]}>
               Checked while you use the app. Nothing leaves the device.
@@ -399,7 +410,7 @@ export default function Onboarding() {
           onPress={next}
           style={({ pressed }) => [
             btnPrimary,
-            step === 1 && nameMissing && { opacity: 0.45 },
+            ((step === 1 && nameMissing) || permsPending) && { opacity: 0.45 },
             pressed && { backgroundColor: C.accentDeep },
           ]}
         >
@@ -520,6 +531,51 @@ function GoalReveal({ ml, adjusted }: { ml: number; adjusted: boolean }) {
 }
 
 /// Radio list row: 22px circle with accent dot, serif label, muted desc.
+/// Permission card: answered with its own Allow / Skip buttons rather than
+/// selected against a sibling — the two boosts are independent, not a
+/// radio choice.
+function PermissionCard({ label, desc, state, busy, onAllow, onSkip, emoji }: {
+  label: string; desc: string; state: 'allow' | 'skip' | null;
+  busy?: boolean; onAllow: () => void; onSkip: () => void; emoji: string;
+}) {
+  return (
+    <View style={[s.optCard, state === 'allow' && s.optCardOn]}>
+      <View style={[s.optArt, state === 'allow' && { backgroundColor: C.accent100 }]}>
+        <Text style={{ fontSize: 32 }}>{emoji}</Text>
+      </View>
+      <View style={{ flex: 1 }}>
+        <Text style={{ fontFamily: F.heading, fontSize: 19, lineHeight: 23, letterSpacing: -0.3, color: C.text }}>
+          {label}
+        </Text>
+        <Text style={{ fontFamily: F.body, fontSize: 14, lineHeight: 19, color: C.neutral600, marginTop: 3 }}>
+          {desc}
+        </Text>
+        <View style={{ flexDirection: 'row', gap: 8, marginTop: 10 }}>
+          <Pressable
+            onPress={onAllow} disabled={busy} hitSlop={4}
+            style={[s.permBtn, state === 'allow' && s.permBtnOn]}
+          >
+            <Text style={{
+              fontFamily: F.heading, fontSize: 14,
+              color: state === 'allow' ? C.onAccent : C.accentDeep,
+            }}>
+              {state === 'allow' ? 'Allowed ✓' : 'Allow'}
+            </Text>
+          </Pressable>
+          <Pressable
+            onPress={onSkip} disabled={busy} hitSlop={4}
+            style={[s.permBtn, state === 'skip' && s.permBtnSkip]}
+          >
+            <Text style={{ fontFamily: F.heading, fontSize: 14, color: C.muted }}>
+              {state === 'skip' ? 'Skipped' : 'Skip'}
+            </Text>
+          </Pressable>
+        </View>
+      </View>
+    </View>
+  );
+}
+
 /// Selectable option card: a large pictorial block beside the label and
 /// description, accent-framed when chosen — the card interface from the
 /// original design, in Broadsheet clothes.
@@ -635,6 +691,12 @@ const s = StyleSheet.create({
     backgroundColor: C.bg,
     alignItems: 'center', justifyContent: 'center',
   },
+  permBtn: {
+    borderWidth: 1, borderColor: C.divider, borderRadius: 10,
+    paddingVertical: 7, paddingHorizontal: 14,
+  },
+  permBtnOn: { backgroundColor: C.accent, borderColor: C.accent },
+  permBtnSkip: { backgroundColor: C.surface, borderColor: C.neutral400 },
   seg: {
     flexDirection: 'row', borderWidth: 1, borderColor: C.divider,
     borderRadius: R.md, overflow: 'hidden',
