@@ -15,7 +15,7 @@ import {
 } from '@/lib/engines';
 import { GoalGlass } from '@/lib/glass';
 import { Droplet } from '@/lib/logo';
-import { Ruler, RulerLabel } from '@/lib/ruler';
+import { Ruler, RulerLabel, RulerScrollView } from '@/lib/ruler';
 import { C, F, R, T, btnPrimary } from '@/lib/theme';
 
 const NATIVE = Platform.OS !== 'web';
@@ -154,7 +154,7 @@ export default function Onboarding() {
         </View>
       </View>
 
-      <ScrollView
+      <RulerScrollView
         ref={scroll}
         contentContainerStyle={{ paddingHorizontal: 32, paddingTop: 28, paddingBottom: 8, flexGrow: 1 }}
         keyboardShouldPersistTaps="handled"
@@ -354,7 +354,7 @@ export default function Onboarding() {
           </View>
         )}
         </StepIn>
-      </ScrollView>
+      </RulerScrollView>
 
       <View style={{ paddingHorizontal: 18, paddingTop: 10, paddingBottom: 10 }}>
         <Pressable

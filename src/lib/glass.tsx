@@ -57,7 +57,7 @@ export function GoalGlass({
   ml, fill, width = 72, ground = C.bg, startEmpty = false, fillMs = 1300,
 }: {
   ml?: number;      // 1000..6000 → design's level mapping
-  fill?: number;    // 0..1 direct fill (used on Home for progress)
+  fill?: number;    // 0..1 direct fill; above 1 the glass overflows
   width?: number;
   ground?: string;  // color of the surface the glass sits on
   startEmpty?: boolean; // begin drained and pour in on mount
@@ -66,13 +66,17 @@ export function GoalGlass({
   const scale = width / VW;
   const height = VH * scale;
 
+  // Past the goal the glass reads as overflowing: brim-full water plus
+  // spill streams down the sides and a puddle at the base.
+  const over = ml == null && (fill ?? 0) > 1.001;
+
   // Water surface Y in design coords (smaller = fuller).
   const t = ml != null
     ? (Math.max(1000, Math.min(6000, ml)) - 1000) / 5000
     : Math.max(0, Math.min(1, fill ?? 0));
   const targetY = ml != null
     ? 96 - (0.32 + t * 0.6) * 84 - 9
-    : 99 - t * 92;
+    : over ? 3 : 99 - t * 92;
 
   const level = useRef(new Animated.Value((startEmpty ? 104 : targetY) * scale)).current;
   const firstRun = useRef(true);
@@ -168,6 +172,65 @@ export function GoalGlass({
         />
         <Path d={GLASS} fill="none" stroke={C.neutral600} strokeWidth={1.2} strokeLinejoin="round" />
       </Svg>
+
+      {/* Overflow: drawn above the mask so it lives outside the glass */}
+      {over && (
+        <>
+          <SpillStream left={7.4 * scale} delay={0} scale={scale} />
+          <SpillStream left={49.4 * scale} delay={750} scale={scale} />
+          <Puddle scale={scale} width={width} />
+        </>
+      )}
     </View>
+  );
+}
+
+/// A droplet run sliding down the outside of the glass wall.
+function SpillStream({ left, delay, scale }: { left: number; delay: number; scale: number }) {
+  const v = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    const loop = Animated.loop(Animated.sequence([
+      Animated.delay(delay),
+      Animated.timing(v, { toValue: 1, duration: 1500, easing: Easing.in(Easing.quad), useNativeDriver: NATIVE }),
+      Animated.timing(v, { toValue: 0, duration: 1, useNativeDriver: NATIVE }),
+    ]));
+    loop.start();
+    return () => loop.stop();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  return (
+    <Animated.View
+      style={{
+        position: 'absolute', left, top: 3 * scale,
+        width: 2.8 * scale, height: 11 * scale, borderRadius: 2 * scale,
+        backgroundColor: C.accent500,
+        opacity: v.interpolate({ inputRange: [0, 0.12, 0.85, 1], outputRange: [0, 0.9, 0.65, 0] }),
+        transform: [{ translateY: v.interpolate({ inputRange: [0, 1], outputRange: [0, 86 * scale] }) }],
+      }}
+    />
+  );
+}
+
+/// The pool the spills collect in, breathing gently at the base.
+function Puddle({ scale, width }: { scale: number; width: number }) {
+  const v = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    const loop = Animated.loop(Animated.sequence([
+      Animated.timing(v, { toValue: 1, duration: 1600, easing: Easing.inOut(Easing.sin), useNativeDriver: NATIVE }),
+      Animated.timing(v, { toValue: 0, duration: 1600, easing: Easing.inOut(Easing.sin), useNativeDriver: NATIVE }),
+    ]));
+    loop.start();
+    return () => loop.stop();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  return (
+    <Animated.View
+      style={{
+        position: 'absolute', bottom: 0.5 * scale, left: width / 2 - 27 * scale,
+        width: 54 * scale, height: 5 * scale, borderRadius: 3 * scale,
+        backgroundColor: C.accent300, opacity: 0.9,
+        transform: [{ scaleX: v.interpolate({ inputRange: [0, 1], outputRange: [0.88, 1.06] }) }],
+      }}
+    />
   );
 }

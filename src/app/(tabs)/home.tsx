@@ -23,8 +23,11 @@ export default function Home() {
   const useOz = p.unit === 'oz';
   const goal = app.effectiveGoal;
   const total = app.todayTotal;
-  const progress = goal > 0 ? Math.min(1, total / goal) : 0;
+  // Deliberately uncapped: past the goal the figure keeps counting
+  // (e.g. 112%) and the glass overflows.
+  const progress = goal > 0 ? total / goal : 0;
   const remaining = Math.max(0, goal - total);
+  const overMl = Math.max(0, total - goal);
   const hour = new Date().getHours();
   const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
 
@@ -69,7 +72,11 @@ export default function Home() {
               <Text style={s.pct}>{Math.round(progress * 100)}%</Text>
               <Text style={s.totals}>{fmtVol(total, useOz)} of {fmtVol(goal, useOz)}</Text>
               <Text style={[T.body, { fontSize: 14.5, marginTop: 3 }]}>
-                {remaining > 0 ? `${fmtVol(remaining, useOz)} to go` : 'Goal met. Nicely done.'}
+                {remaining > 0
+                  ? `${fmtVol(remaining, useOz)} to go`
+                  : overMl > 0
+                    ? `${fmtVol(overMl, useOz)} over goal. Overflowing.`
+                    : 'Goal met. Nicely done.'}
               </Text>
             </View>
             <GoalGlass fill={progress} width={104} ground={C.surface} />

@@ -2,7 +2,7 @@
 // A single context keeps v1 simple; screens re-render via the `version` tick.
 import React, { createContext, useCallback, useContext, useMemo, useState } from 'react';
 
-import { DayContextRow, LogRow, Profile, makeLog, store } from './db';
+import { DayContextRow, LogRow, Profile, hydrateCustomBeverages, makeLog, store } from './db';
 import {
   ActivityLevel, Beverage, Climate, EnvBoost, Gender, envBoost, recommendedGoalMl,
   todayKey,
@@ -22,6 +22,8 @@ interface AppState {
   setManualTemp: (tempC: number | null) => void;
   detectEnvironment: () => Promise<DayContextRow | null>;
   saveNote: (note: string) => void;
+  addCustomBeverage: (name: string, servingMl: number, waterMl: number) => string;
+  removeCustomBeverage: (id: string) => void;
   resetAll: () => void;
   refresh: () => void;
 }
@@ -81,7 +83,24 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
         bump();
         return row;
       },
-      resetAll: () => { store.clearAll(); setManualTempState(null); bump(); },
+      // Hydration factor derives from the user's reference serving:
+      // "in servingMl of this drink, waterMl counts as water".
+      addCustomBeverage: (name, servingMl, waterMl) => {
+        const factor = Math.max(0.05, Math.min(1.5, waterMl / servingMl));
+        const id = `custom_${Date.now().toString(36)}`;
+        store.addCustomBeverage({
+          id, name: name.trim(), factor: Math.round(factor * 100) / 100,
+        });
+        hydrateCustomBeverages(); bump();
+        return id;
+      },
+      removeCustomBeverage: (id) => {
+        store.deleteCustomBeverage(id);
+        hydrateCustomBeverages(); bump();
+      },
+      resetAll: () => {
+        store.clearAll(); hydrateCustomBeverages(); setManualTempState(null); bump();
+      },
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [version, manualTemp, bump]);

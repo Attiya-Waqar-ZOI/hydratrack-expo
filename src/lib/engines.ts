@@ -151,8 +151,16 @@ export const BEVERAGES: Beverage[] = [
   { id: 'alcohol', name: 'Beer or wine', factor: 0.5, caffeinePer100: 0, icon: 'glass-wine' },
 ];
 
+// User-defined drinks, hydrated from storage at startup (db.ts) and after
+// every edit. Kept here so beverageById stays the single lookup.
+export let CUSTOM_BEVERAGES: Beverage[] = [];
+export function setCustomBeverages(list: Beverage[]) { CUSTOM_BEVERAGES = list; }
+export const allBeverages = (): Beverage[] => [...BEVERAGES, ...CUSTOM_BEVERAGES];
+
 export const beverageById = (id: string): Beverage =>
-  BEVERAGES.find((b) => b.id === id) ?? BEVERAGES[0];
+  BEVERAGES.find((b) => b.id === id)
+  ?? CUSTOM_BEVERAGES.find((b) => b.id === id)
+  ?? BEVERAGES[0];
 
 export const QUICK_AMOUNTS = [100, 150, 200, 250, 350, 500, 750];
 

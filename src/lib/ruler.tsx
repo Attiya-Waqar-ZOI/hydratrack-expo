@@ -4,7 +4,9 @@
 // Haptics: a medium impact per snap tick, throttled so fast drags stay fluid.
 import * as Haptics from 'expo-haptics';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, PanResponder, Platform, StyleSheet, Text, View } from 'react-native';
+import {
+  Animated, PanResponder, Platform, ScrollView, ScrollViewProps, StyleSheet, Text, View,
+} from 'react-native';
 
 import { C, F } from './theme';
 
@@ -12,6 +14,30 @@ const NATIVE = Platform.OS !== 'web';
 const HAPTIC_GAP_MS = 40; // minimum spacing between ticks so they never queue up
 
 export interface RulerLabel { left: number; text: string }
+
+// ── Scroll lock ─────────────────────────────────────────────────────
+// A finger on a ruler locks vertical scrolling in every RulerScrollView,
+// so slightly diagonal drags don't bounce the page while sliding.
+const lockListeners = new Set<(locked: boolean) => void>();
+let activeDrags = 0;
+
+function setRulerDragging(dragging: boolean) {
+  activeDrags = Math.max(0, activeDrags + (dragging ? 1 : -1));
+  const locked = activeDrags > 0;
+  lockListeners.forEach((l) => l(locked));
+}
+
+/// Drop-in ScrollView that freezes while any Ruler is being touched.
+export const RulerScrollView = React.forwardRef<ScrollView, ScrollViewProps>(
+  function RulerScrollView({ scrollEnabled, ...props }, ref) {
+    const [locked, setLocked] = useState(false);
+    useEffect(() => {
+      lockListeners.add(setLocked);
+      return () => { lockListeners.delete(setLocked); };
+    }, []);
+    return <ScrollView ref={ref} {...props} scrollEnabled={!locked && scrollEnabled !== false} />;
+  },
+);
 
 export function Ruler({
   value, min, max, px, step = 1, labels, onChange,
@@ -52,6 +78,7 @@ export function Ruler({
     onPanResponderTerminationRequest: () => false,
     onPanResponderGrant: () => {
       dragging.current = true;
+      setRulerDragging(true);
       startVal.current = valueRef.current;
     },
     onPanResponderMove: (_, g) => {
@@ -66,6 +93,7 @@ export function Ruler({
     },
     onPanResponderRelease: () => {
       dragging.current = false;
+      setRulerDragging(false);
       // Settle onto the snapped tick.
       Animated.timing(x, {
         toValue: halfRef.current - (valueRef.current - min) * px,
@@ -74,6 +102,7 @@ export function Ruler({
     },
     onPanResponderTerminate: () => {
       dragging.current = false;
+      setRulerDragging(false);
       x.setValue(halfRef.current - (valueRef.current - min) * px);
     },
   })).current;

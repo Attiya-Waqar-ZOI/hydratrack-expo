@@ -1,14 +1,15 @@
-// Log a drink — port of the design's sheet: beverage radio list with
-// "counts …" metas, a ruler for the amount, bordered When chips, the
-// hydration line, and a full-width serif CTA.
+// Log a drink — the design's sheet: amount ruler first, then the beverage
+// radio list (built-ins + the user's own drinks), bordered When chips, the
+// hydration line, and a full-width serif CTA. Users can define custom
+// drinks by stating how much water a reference serving counts as.
 import { router } from 'expo-router';
 import React, { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useApp } from '@/lib/app-state';
-import { BEVERAGES, beverageById, fmtVol } from '@/lib/engines';
-import { Ruler } from '@/lib/ruler';
+import { allBeverages, beverageById, fmtVol } from '@/lib/engines';
+import { Ruler, RulerScrollView } from '@/lib/ruler';
 import { showToast } from '@/lib/toast';
 import { C, F, btnPrimary } from '@/lib/theme';
 
@@ -25,6 +26,7 @@ export default function AddDrink() {
   const [ml, setMl] = useState(250);
   const [hoursAgo, setHoursAgo] = useState(0);
 
+  const bevs = allBeverages();
   const bev = beverageById(bevId);
   const hydration = Math.round(ml * bev.factor);
 
@@ -38,6 +40,12 @@ export default function AddDrink() {
     });
   };
 
+  const removeCustom = (id: string, name: string) => {
+    app.removeCustomBeverage(id);
+    if (bevId === id) setBevId('water');
+    showToast(`${name} removed`);
+  };
+
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: C.bg }} edges={['top', 'bottom']}>
       {/* Sheet header */}
@@ -48,30 +56,11 @@ export default function AddDrink() {
         <Text style={s.title}>Log a drink</Text>
       </View>
 
-      <ScrollView contentContainerStyle={{ paddingHorizontal: 26, paddingBottom: 12, gap: 26 }}>
-        {/* Beverage list */}
-        <View>
-          <Text style={[s.section, { marginBottom: 12 }]}>What did you drink</Text>
-          {BEVERAGES.map((b) => (
-            <Pressable
-              key={b.id}
-              onPress={() => setBevId(b.id)}
-              style={({ pressed }) => [s.bevRow, pressed && { opacity: 0.7 }]}
-            >
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                <View style={[s.radio, bevId === b.id && { borderColor: C.accent }]}>
-                  {bevId === b.id && <View style={s.radioDot} />}
-                </View>
-                <Text style={{ fontFamily: F.body, fontSize: 16, color: C.text }}>{b.name}</Text>
-              </View>
-              <Text style={{ fontFamily: F.body, fontSize: 13.5, color: C.muted }}>
-                {b.factor === 1 ? 'counts fully' : `counts ${Math.round(b.factor * 100)}%`}
-              </Text>
-            </Pressable>
-          ))}
-        </View>
-
-        {/* Amount */}
+      <RulerScrollView
+        contentContainerStyle={{ paddingHorizontal: 26, paddingBottom: 12, gap: 26 }}
+        keyboardShouldPersistTaps="handled"
+      >
+        {/* Amount — first, per the flow: how much, then what */}
         <View>
           <View style={s.amtRow}>
             <Text style={s.section}>How much</Text>
@@ -87,6 +76,39 @@ export default function AddDrink() {
               onChange={setMl}
             />
           </View>
+        </View>
+
+        {/* Beverage list */}
+        <View>
+          <Text style={[s.section, { marginBottom: 12 }]}>What did you drink</Text>
+          {bevs.map((b) => {
+            const custom = b.id.startsWith('custom_');
+            return (
+              <Pressable
+                key={b.id}
+                onPress={() => setBevId(b.id)}
+                style={({ pressed }) => [s.bevRow, pressed && { opacity: 0.7 }]}
+              >
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 }}>
+                  <View style={[s.radio, bevId === b.id && { borderColor: C.accent }]}>
+                    {bevId === b.id && <View style={s.radioDot} />}
+                  </View>
+                  <Text style={{ fontFamily: F.body, fontSize: 16, color: C.text }} numberOfLines={1}>
+                    {b.name}
+                  </Text>
+                </View>
+                <Text style={{ fontFamily: F.body, fontSize: 13.5, color: C.muted }}>
+                  {b.factor === 1 ? 'counts fully' : `counts ${Math.round(b.factor * 100)}%`}
+                </Text>
+                {custom && (
+                  <Pressable onPress={() => removeCustom(b.id, b.name)} hitSlop={10}>
+                    <Text style={{ fontFamily: F.body, fontSize: 15, color: C.muted }}>✕</Text>
+                  </Pressable>
+                )}
+              </Pressable>
+            );
+          })}
+          <CustomDrinkForm onCreated={setBevId} />
         </View>
 
         {/* When */}
@@ -112,7 +134,7 @@ export default function AddDrink() {
             {fmtVol(hydration, !!useOz)}
           </Text>
         </View>
-      </ScrollView>
+      </RulerScrollView>
 
       <View style={{ paddingHorizontal: 26, paddingTop: 12, paddingBottom: 16 }}>
         <Pressable
@@ -123,6 +145,110 @@ export default function AddDrink() {
         </Pressable>
       </View>
     </SafeAreaView>
+  );
+}
+
+/// "Add your own drink": name it, then state the reference — in a serving
+/// of X ml, Y ml counts as water. The factor Y/X scales to any amount.
+function CustomDrinkForm({ onCreated }: { onCreated: (id: string) => void }) {
+  const app = useApp();
+  const [open, setOpen] = useState(false);
+  const [name, setName] = useState('');
+  const [serving, setServing] = useState('330');
+  const [water, setWater] = useState('250');
+
+  const servingN = parseInt(serving, 10);
+  const waterN = parseInt(water, 10);
+  const valid =
+    name.trim().length > 0 &&
+    Number.isFinite(servingN) && servingN > 0 &&
+    Number.isFinite(waterN) && waterN >= 0;
+  const pct = valid ? Math.round(Math.max(0.05, Math.min(1.5, waterN / servingN)) * 100) : null;
+
+  const save = () => {
+    if (!valid) return;
+    const id = app.addCustomBeverage(name, servingN, waterN);
+    onCreated(id);
+    setOpen(false);
+    setName(''); setServing('330'); setWater('250');
+    showToast(`${name.trim()} added — counts ${pct}%`);
+  };
+
+  if (!open) {
+    return (
+      <Pressable
+        onPress={() => setOpen(true)}
+        style={({ pressed }) => [s.bevRow, { borderBottomWidth: 0 }, pressed && { opacity: 0.7 }]}
+      >
+        <Text style={{ fontFamily: F.body, fontSize: 16, color: C.accentDeep }}>
+          ＋ Add your own drink
+        </Text>
+      </Pressable>
+    );
+  }
+
+  return (
+    <View style={s.customBox}>
+      <Text style={s.customTitle}>Your drink</Text>
+      <TextInput
+        style={s.input}
+        value={name}
+        onChangeText={setName}
+        placeholder="Name, e.g. Laban"
+        placeholderTextColor={C.faint}
+        maxLength={24}
+        autoFocus
+      />
+      <Text style={s.customHint}>
+        How much water is in a serving of it?
+      </Text>
+      <View style={{ flexDirection: 'row', gap: 14 }}>
+        <View style={{ flex: 1 }}>
+          <Text style={s.fieldKicker}>A serving of</Text>
+          <View style={s.unitRow}>
+            <TextInput
+              style={[s.input, { flex: 1 }]}
+              value={serving}
+              onChangeText={setServing}
+              keyboardType="number-pad"
+              maxLength={4}
+            />
+            <Text style={s.unitTxt}>ml</Text>
+          </View>
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={s.fieldKicker}>counts as</Text>
+          <View style={s.unitRow}>
+            <TextInput
+              style={[s.input, { flex: 1 }]}
+              value={water}
+              onChangeText={setWater}
+              keyboardType="number-pad"
+              maxLength={4}
+            />
+            <Text style={s.unitTxt}>ml water</Text>
+          </View>
+        </View>
+      </View>
+      <Text style={s.customHint}>
+        {pct != null
+          ? `Counts ${pct}% — every amount you log scales from this.`
+          : 'Enter a name and both amounts.'}
+      </Text>
+      <View style={{ flexDirection: 'row', gap: 10, marginTop: 4 }}>
+        <Pressable onPress={() => setOpen(false)} style={s.smallBtn} hitSlop={6}>
+          <Text style={{ fontFamily: F.body, fontSize: 15, color: C.muted }}>Cancel</Text>
+        </Pressable>
+        <Pressable
+          onPress={save}
+          style={[s.smallBtn, s.smallBtnPrimary, !valid && { opacity: 0.4 }]}
+          disabled={!valid}
+          hitSlop={6}
+        >
+          <Text style={{ fontFamily: F.heading, fontSize: 15, color: C.onAccent }}>Save drink</Text>
+        </Pressable>
+      </View>
+    </View>
   );
 }
 
@@ -156,4 +282,23 @@ const s = StyleSheet.create({
     gap: 12, paddingTop: 2,
   },
   ctaTxt: { fontFamily: F.heading, fontSize: 18, color: C.onAccent },
+  customBox: {
+    marginTop: 14, padding: 16, gap: 10,
+    borderWidth: 1, borderColor: C.divider, borderRadius: 14,
+  },
+  customTitle: { fontFamily: F.heading, fontSize: 17, color: C.text },
+  customHint: { fontFamily: F.body, fontSize: 13, lineHeight: 18, color: C.muted },
+  fieldKicker: { fontFamily: F.body, fontSize: 12.5, color: C.muted, marginBottom: 2 },
+  input: {
+    fontFamily: F.body, fontSize: 16, color: C.text,
+    borderBottomWidth: 1, borderBottomColor: C.neutral400,
+    paddingVertical: 6, paddingHorizontal: 2,
+  },
+  unitRow: { flexDirection: 'row', alignItems: 'baseline', gap: 6 },
+  unitTxt: { fontFamily: F.body, fontSize: 13, color: C.muted },
+  smallBtn: {
+    paddingVertical: 9, paddingHorizontal: 16, borderRadius: 10,
+    borderWidth: 1, borderColor: C.divider,
+  },
+  smallBtnPrimary: { backgroundColor: C.accent, borderColor: C.accent },
 });

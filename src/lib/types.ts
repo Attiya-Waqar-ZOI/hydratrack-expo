@@ -19,6 +19,10 @@ export interface DayContextRow {
   humidity: number | null; elevationM: number | null; note: string | null;
 }
 
+export interface CustomBeverageRow {
+  id: string; name: string; factor: number;
+}
+
 export interface Store {
   getProfile(): Profile | null;
   saveProfile(p: Profile): void;
@@ -29,4 +33,7 @@ export interface Store {
   totalsByDay(limitDays: number): { dayKey: string; totalMl: number }[];
   getDayContext(dayKey: string): DayContextRow | null;
   saveDayContext(c: DayContextRow): void;
+  customBeverages(): CustomBeverageRow[];
+  addCustomBeverage(b: CustomBeverageRow): void;
+  deleteCustomBeverage(id: string): void;
 }
