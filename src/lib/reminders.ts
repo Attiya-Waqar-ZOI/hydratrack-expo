@@ -94,6 +94,21 @@ const GENERIC = [
   { title: '🌊 Stay ahead', body: 'Don’t let thirst catch you first — drink a little now.' },
 ];
 
+/// Immediate one-off: fired when walked steps push the goal up a tier.
+export async function notifyGoalRaised(goalMl: number, steps: number, useOz: boolean) {
+  if (!NATIVE) return;
+  const perm = await Notifications.getPermissionsAsync();
+  if (!perm.granted) return;
+  await Notifications.scheduleNotificationAsync({
+    content: {
+      title: '🚶 Goal raised',
+      body: `You’ve walked ${steps.toLocaleString()} steps — today’s goal is now ${fmtVol(goalMl, useOz)}.`,
+      categoryIdentifier: CATEGORY,
+    },
+    trigger: null,
+  });
+}
+
 export async function resyncReminders(
   p: ReminderPrefs,
   status?: ReminderStatus | null,

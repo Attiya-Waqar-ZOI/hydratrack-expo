@@ -110,6 +110,11 @@ export default function Home() {
         <View style={s.card}>
           <Text style={[s.section, { marginBottom: 6 }]}>Today&apos;s weather</Text>
           <Text style={[T.body, { fontSize: 14.5, lineHeight: 21 }]}>{weatherLine}</Text>
+          {app.stepBoost > 0 && app.stepsToday != null && (
+            <Text style={[T.body, { fontSize: 14.5, lineHeight: 21, marginTop: 4 }]}>
+              🚶 Plus {app.stepBoost} ml for {app.stepsToday.toLocaleString()} steps today.
+            </Text>
+          )}
           {!ctx?.place && (
             <Pressable onPress={() => app.detectEnvironment().catch(() => {})} style={{ marginTop: 8 }} hitSlop={6}>
               <Text style={s.ghostTxt}>Use my location</Text>

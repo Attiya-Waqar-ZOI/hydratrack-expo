@@ -13,7 +13,10 @@
       "backgroundColor": "#fbfcfd"
     },
     "ios": {
-      "icon": "./assets/expo.icon"
+      "icon": "./assets/expo.icon",
+      "infoPlist": {
+        "NSMotionUsageDescription": "HydraTrack reads your step count to raise your daily water goal on active days."
+      }
     },
     "android": {
       "adaptiveIcon": {

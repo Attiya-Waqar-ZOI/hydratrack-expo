@@ -17,6 +17,7 @@ import {
   saveReminderPrefs,
 } from '@/lib/reminders';
 import { Ruler } from '@/lib/ruler';
+import { stepsEnabled } from '@/lib/steps';
 import { showToast } from '@/lib/toast';
 import { C, F, T } from '@/lib/theme';
 
@@ -107,6 +108,9 @@ export default function You() {
         {/* Reminders */}
         <NotificationSettings />
 
+        {/* Steps */}
+        <StepSettings />
+
         {/* Units */}
         <View style={[s.row, s.rowHead]}>
           <View style={{ flex: 1 }}>
@@ -127,6 +131,36 @@ export default function You() {
         </View>
       </ScrollView>
     </SafeAreaView>
+  );
+}
+
+/// Step-aware goal: motion-sensor steps add to the daily target.
+function StepSettings() {
+  const app = useApp();
+  const [on, setOn] = useState(false);
+
+  useEffect(() => { stepsEnabled().then(setOn); }, []);
+
+  const toggle = async (want: boolean) => {
+    const ok = await app.setStepTracking(want);
+    setOn(want && ok);
+    if (want && !ok) showToast('Motion access denied — enable it in Settings');
+  };
+
+  const sub = !on
+    ? 'Active days add to your goal'
+    : app.stepsToday == null
+      ? 'On — reading your steps'
+      : `${app.stepsToday.toLocaleString()} steps today${app.stepBoost > 0 ? ` · +${app.stepBoost} ml` : ''}`;
+
+  return (
+    <View style={[s.row, s.rowHead]}>
+      <View style={{ flex: 1 }}>
+        <Text style={s.rowTitle}>Steps raise the goal</Text>
+        <Text style={s.rowSub}>{sub}</Text>
+      </View>
+      <Seg options={['Off', 'On']} selected={on ? 1 : 0} onSelect={(i) => toggle(i === 1)} />
+    </View>
   );
 }
 

@@ -16,6 +16,7 @@ import {
 import { GoalGlass } from '@/lib/glass';
 import { Droplet } from '@/lib/logo';
 import { Ruler, RulerLabel, RulerScrollView } from '@/lib/ruler';
+import { requestStepPermission, stepsEnabled } from '@/lib/steps';
 import { C, F, R, T, btnPrimary } from '@/lib/theme';
 
 const NATIVE = Platform.OS !== 'web';
@@ -69,6 +70,8 @@ export default function Onboarding() {
     editing && app.dayContext?.place ? 'allow' : 'skip',
   );
   const [locBusy, setLocBusy] = useState(false);
+  const [stepsChoice, setStepsChoice] = useState<'allow' | 'skip'>('skip');
+  const [stepsBusy, setStepsBusy] = useState(false);
   const [detected, setDetected] = useState<string | null>(
     editing && app.dayContext?.place
       ? `${app.dayContext.place}${app.dayContext.tempC != null ? ` · ${Math.round(app.dayContext.tempC)}°C right now` : ''}`
@@ -94,6 +97,16 @@ export default function Onboarding() {
   const shownStep = skipClimate && step === 6 ? 5 : step;
 
   useEffect(() => { scroll.current?.scrollTo({ y: 0, animated: false }); }, [step]);
+  useEffect(() => { stepsEnabled().then((on) => setStepsChoice(on ? 'allow' : 'skip')); }, []);
+
+  const askSteps = async () => {
+    if (stepsBusy) return;
+    if (stepsChoice === 'allow') { setStepsChoice('skip'); return; }
+    setStepsBusy(true);
+    const granted = await requestStepPermission();
+    setStepsBusy(false);
+    setStepsChoice(granted ? 'allow' : 'skip');
+  };
 
   const next = () => {
     if (step === 1 && nameMissing) { setNameTouched(true); return; }
@@ -139,6 +152,7 @@ export default function Onboarding() {
       customGoalMl: goalSet ?? 0,
       dailyGoalMl: goal, bmi,
     });
+    app.setStepTracking(stepsChoice === 'allow').catch(() => {});
     if (editing) router.back();
     else router.replace('/(tabs)/home');
   };
@@ -308,26 +322,35 @@ export default function Onboarding() {
         {step === 4 && (
           <View style={{ gap: 22 }}>
             <View>
-              <Text style={s.h1o}>Follow the{'\n'}weather</Text>
+              <Text style={s.h1o}>A goal that{'\n'}follows your day</Text>
               <Text style={[T.body, { fontSize: 15, marginTop: 6, maxWidth: 290 }]}>
-                With location on, your goal moves with the heat and altitude of where you actually are — no manual setup.
+                Optional. Tap to allow — tap again to turn off.
               </Text>
             </View>
             <View style={{ gap: 12 }}>
               <OptionCard
-                label="Allow location" emoji="📍"
+                label="Current weather" emoji="🌤️"
                 desc={locBusy
                   ? 'Asking for permission…'
-                  : detected ?? 'Your goal adapts to the day.'}
-                selected={location === 'allow'} onPress={askLocation}
+                  : location === 'allow'
+                    ? detected ?? 'On — heat, dry air and altitude raise your goal.'
+                    : 'Uses your location. Hot or dry days raise your goal.'}
+                selected={location === 'allow'}
+                onPress={location === 'allow' ? () => setLocation('skip') : askLocation}
               />
               <OptionCard
-                label="Not now" emoji="🌙" desc="Describe your climate yourself instead."
-                selected={location === 'skip'} onPress={() => setLocation('skip')}
+                label="Your steps" emoji="🚶"
+                desc={stepsBusy
+                  ? 'Asking for permission…'
+                  : stepsChoice === 'allow'
+                    ? 'On — active days raise your goal.'
+                    : 'Uses the motion sensor. Walk a lot, drink a bit more.'}
+                selected={stepsChoice === 'allow'}
+                onPress={askSteps}
               />
             </View>
             <Text style={[T.body, { fontSize: 14 }]}>
-              Checked once a day. Coordinates never leave the device.
+              Checked while you use the app. Nothing leaves the device.
             </Text>
           </View>
         )}

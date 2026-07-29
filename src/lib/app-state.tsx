@@ -1,9 +1,14 @@
 // Central app state: profile, today's intake, environment context, actions.
 // A single context keeps v1 simple; screens re-render via the `version` tick.
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { AppState as RNAppState } from 'react-native';
 
 import { DayContextRow, LogRow, Profile, hydrateCustomBeverages, makeLog, store } from './db';
-import { loadReminderPrefs, resyncReminders } from './reminders';
+import { loadReminderPrefs, notifyGoalRaised, resyncReminders } from './reminders';
+import {
+  announcedBoost, requestStepPermission, setAnnouncedBoost, setStepsEnabled,
+  stepBoostMl, stepsEnabled, todaySteps,
+} from './steps';
 import {
   ActivityLevel, Beverage, Climate, EnvBoost, Gender, envBoost, recommendedGoalMl,
   todayKey,
@@ -25,6 +30,9 @@ interface AppState {
   saveNote: (note: string) => void;
   addCustomBeverage: (name: string, servingMl: number, waterMl: number) => string;
   removeCustomBeverage: (id: string) => void;
+  stepsToday: number | null;
+  stepBoost: number;
+  setStepTracking: (on: boolean) => Promise<boolean>;
   resetAll: () => void;
   refresh: () => void;
 }
@@ -34,7 +42,30 @@ const Ctx = createContext<AppState | null>(null);
 export function AppStateProvider({ children }: { children: React.ReactNode }) {
   const [version, setVersion] = useState(0);
   const [manualTemp, setManualTempState] = useState<number | null>(null);
+  const [stepsToday, setStepsToday] = useState<number | null>(null);
+  const [stepBoost, setStepBoost] = useState(0);
   const bump = useCallback(() => setVersion((v) => v + 1), []);
+
+  // Re-read the motion sensor whenever the app becomes active; the boost
+  // tier feeds straight into effectiveGoal.
+  const refreshSteps = useCallback(async () => {
+    if (!(await stepsEnabled())) {
+      setStepsToday(null); setStepBoost(0);
+      return;
+    }
+    const steps = await todaySteps();
+    if (steps == null) return;
+    setStepsToday(steps);
+    setStepBoost(stepBoostMl(steps));
+  }, []);
+
+  useEffect(() => {
+    refreshSteps();
+    const sub = RNAppState.addEventListener('change', (st) => {
+      if (st === 'active') refreshSteps();
+    });
+    return () => sub.remove();
+  }, [refreshSteps]);
 
   const state = useMemo<AppState>(() => {
     const profile = store.getProfile();
@@ -47,10 +78,24 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       dayContext?.humidity ?? null,
       dayContext?.elevationM ?? null,
     );
-    const effectiveGoal = (profile?.dailyGoalMl ?? 0) + env.totalMl;
+    const effectiveGoal = (profile?.dailyGoalMl ?? 0) + env.totalMl + stepBoost;
 
     return {
       profile, todayLogs, todayTotal, effectiveGoal, env, dayContext, version,
+      stepsToday, stepBoost,
+      setStepTracking: async (on: boolean) => {
+        if (!on) {
+          await setStepsEnabled(false);
+          setStepsToday(null); setStepBoost(0);
+          return true;
+        }
+        const granted = await requestStepPermission();
+        if (granted) {
+          await setStepsEnabled(true);
+          await refreshSteps();
+        }
+        return granted;
+      },
       refresh: bump,
       saveProfile: (p) => { store.saveProfile(p); bump(); },
       addDrink: (volumeMl, beverage, at) => {
@@ -104,7 +149,21 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       },
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [version, manualTemp, bump]);
+  }, [version, manualTemp, bump, stepsToday, stepBoost, refreshSteps]);
+
+  // Announce a goal raise once per tier per day, as a notification.
+  useEffect(() => {
+    if (stepBoost <= 0 || stepsToday == null) return;
+    const p = store.getProfile();
+    if (!p) return;
+    announcedBoost().then((prev) => {
+      if (stepBoost > prev) {
+        setAnnouncedBoost(stepBoost);
+        notifyGoalRaised(state.effectiveGoal, stepsToday, p.unit === 'oz').catch(() => {});
+      }
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stepBoost]);
 
   // Rebuild the notification slate whenever intake or the goal moves:
   // reminder text carries the live remaining amount, and today's slots
