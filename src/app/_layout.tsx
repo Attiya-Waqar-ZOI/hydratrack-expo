@@ -1,14 +1,14 @@
 import {
   SourceSerif4_400Regular, SourceSerif4_600SemiBold, useFonts,
 } from '@expo-google-fonts/source-serif-4';
-import { Stack } from 'expo-router';
+import * as Notifications from 'expo-notifications';
+import { Stack, router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import React, { useEffect } from 'react';
-import { View } from 'react-native';
+import { Platform, View } from 'react-native';
 
 import { AppStateProvider } from '@/lib/app-state';
 import { IntroSplash } from '@/lib/intro';
-import { loadReminderPrefs, resyncReminders } from '@/lib/reminders';
 import { ToastHost } from '@/lib/toast';
 import { C } from '@/lib/theme';
 
@@ -18,10 +18,15 @@ export default function RootLayout() {
     SourceSerif4_600SemiBold,
   });
 
-  // Reschedule reminders every launch so they track the device's
-  // current clock and timezone (travel, DST, manual time changes).
+  // Launch resync of reminders happens in AppStateProvider (it knows the
+  // live remaining amount). Here: tapping a reminder or its "Add intake"
+  // button opens the quick-log dialog.
   useEffect(() => {
-    loadReminderPrefs().then(resyncReminders).catch(() => {});
+    if (Platform.OS === 'web') return;
+    const sub = Notifications.addNotificationResponseReceivedListener(() => {
+      setTimeout(() => router.push('/quick-log'), 250);
+    });
+    return () => sub.remove();
   }, []);
 
   if (!fontsLoaded) return <View style={{ flex: 1, backgroundColor: C.bg }} />;
@@ -42,6 +47,15 @@ export default function RootLayout() {
         <Stack.Screen
           name="add"
           options={{ presentation: 'modal', headerShown: false }}
+        />
+        <Stack.Screen
+          name="quick-log"
+          options={{
+            presentation: 'transparentModal',
+            animation: 'fade',
+            headerShown: false,
+            contentStyle: { backgroundColor: 'transparent' },
+          }}
         />
       </Stack>
       <ToastHost />

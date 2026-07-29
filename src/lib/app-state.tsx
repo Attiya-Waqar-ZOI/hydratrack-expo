@@ -1,8 +1,9 @@
 // Central app state: profile, today's intake, environment context, actions.
 // A single context keeps v1 simple; screens re-render via the `version` tick.
-import React, { createContext, useCallback, useContext, useMemo, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 
 import { DayContextRow, LogRow, Profile, hydrateCustomBeverages, makeLog, store } from './db';
+import { loadReminderPrefs, resyncReminders } from './reminders';
 import {
   ActivityLevel, Beverage, Climate, EnvBoost, Gender, envBoost, recommendedGoalMl,
   todayKey,
@@ -104,6 +105,23 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [version, manualTemp, bump]);
+
+  // Rebuild the notification slate whenever intake or the goal moves:
+  // reminder text carries the live remaining amount, and today's slots
+  // disappear the moment the goal is met. Also covers app launch.
+  useEffect(() => {
+    const p = state.profile;
+    loadReminderPrefs()
+      .then((prefs) => {
+        if (!prefs.on) return;
+        return resyncReminders(prefs, p ? {
+          remainingMl: Math.max(0, state.effectiveGoal - state.todayTotal),
+          useOz: p.unit === 'oz',
+        } : null);
+      })
+      .catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.todayTotal, state.effectiveGoal, state.profile?.unit]);
 
   return <Ctx.Provider value={state}>{children}</Ctx.Provider>;
 }

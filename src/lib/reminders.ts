@@ -2,10 +2,14 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 
-/// Local hydration reminders. Times are minutes-from-midnight in the
-/// device's local clock — expo-notifications DAILY triggers fire in local
-/// time, so the schedule follows the user's clock and timezone. We resync
-/// on every app launch and on every settings change.
+import { fmtVol } from './engines';
+
+/// Local hydration reminders. Times are minutes-from-midnight on the
+/// device's local clock. Because notification text is fixed at schedule
+/// time, the whole slate is rebuilt on every launch and every intake
+/// change: today's reminders carry the live "still to go" amount and are
+/// dropped entirely once the goal is met; the next two days get generic
+/// copy as a buffer until the app is opened again.
 
 export type ReminderPrefs = {
   on: boolean;
@@ -14,11 +18,18 @@ export type ReminderPrefs = {
   endMin: number;   // last reminder
 };
 
+export type ReminderStatus = {
+  remainingMl: number; // today's goal minus today's intake
+  useOz: boolean;
+};
+
 export const DEFAULT_PREFS: ReminderPrefs = {
   on: false, perDay: 6, startMin: 8 * 60, endMin: 22 * 60,
 };
 
 const NATIVE = Platform.OS !== 'web';
+const CATEGORY = 'hydration-reminder';
+export const ACTION_LOG_INTAKE = 'log-intake';
 
 if (NATIVE) {
   Notifications.setNotificationHandler({
@@ -48,14 +59,14 @@ export async function loadReminderPrefs(): Promise<ReminderPrefs> {
   };
 }
 
-export async function saveReminderPrefs(p: ReminderPrefs) {
+export async function saveReminderPrefs(p: ReminderPrefs, status?: ReminderStatus | null) {
   await AsyncStorage.multiSet([
     ['remindersOn', p.on ? '1' : '0'],
     ['remindersPerDay', String(p.perDay)],
     ['remindersStart', String(p.startMin)],
     ['remindersEnd', String(p.endMin)],
   ]);
-  return resyncReminders(p);
+  return resyncReminders(p, status);
 }
 
 /// Evenly spaced times across the window, snapped to 5-minute marks.
@@ -76,15 +87,16 @@ export function fmtClock(min: number): string {
   return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
 }
 
-const MESSAGES = [
-  { title: 'Water break', body: 'A glass now keeps you on pace' },
-  { title: 'Hydration check', body: 'When did you last drink?' },
-  { title: 'Sip reminder', body: 'Time for a top up' },
-  { title: 'Stay ahead', body: 'Drink a little now' },
+const GENERIC = [
+  { title: '💧 Water break', body: 'A glass now keeps you on pace for today’s goal.' },
+  { title: '🥤 Hydration check', body: 'When did you last drink? Log it and keep the streak alive.' },
+  { title: '✨ Sip reminder', body: 'Small sips, big wins. Top up now.' },
+  { title: '🌊 Stay ahead', body: 'Don’t let thirst catch you first — drink a little now.' },
 ];
 
 export async function resyncReminders(
   p: ReminderPrefs,
+  status?: ReminderStatus | null,
 ): Promise<{ scheduled: number; denied: boolean }> {
   if (!NATIVE) return { scheduled: 0, denied: false };
 
@@ -101,18 +113,65 @@ export async function resyncReminders(
     });
   }
 
+  // The "Add intake" button on every reminder; tapping it (or the
+  // notification itself) opens the quick-log dialog in the app.
+  await Notifications.setNotificationCategoryAsync(CATEGORY, [
+    {
+      identifier: ACTION_LOG_INTAKE,
+      buttonTitle: 'Add intake',
+      options: { opensAppToForeground: true },
+    },
+  ]).catch(() => {});
+
   const times = reminderTimes(p);
-  for (let i = 0; i < times.length; i++) {
-    const msg = MESSAGES[i % MESSAGES.length];
+  const now = new Date();
+  const nowMin = now.getHours() * 60 + now.getMinutes();
+  let scheduled = 0;
+
+  const scheduleAt = async (d: Date, title: string, body: string) => {
     await Notifications.scheduleNotificationAsync({
-      content: { title: msg.title, body: msg.body },
+      content: { title, body, categoryIdentifier: CATEGORY },
       trigger: {
-        type: Notifications.SchedulableTriggerInputTypes.DAILY,
-        hour: Math.floor(times[i] / 60),
-        minute: times[i] % 60,
+        type: Notifications.SchedulableTriggerInputTypes.DATE,
+        date: d,
         channelId: 'hydration',
       },
     });
+    scheduled++;
+  };
+
+  // Today — only future slots, only while something is left. When the
+  // status is unknown (no profile yet) fall back to generic copy.
+  const remaining = status?.remainingMl ?? null;
+  if (remaining == null || remaining > 0) {
+    let i = 0;
+    for (const m of times) {
+      if (m <= nowMin + 1) continue;
+      const d = new Date();
+      d.setHours(Math.floor(m / 60), m % 60, 0, 0);
+      const g = GENERIC[i++ % GENERIC.length];
+      await scheduleAt(
+        d,
+        remaining != null ? '💧 Water reminder' : g.title,
+        remaining != null
+          ? `${fmtVol(remaining, status!.useOz)} still to go today. A glass now helps.`
+          : g.body,
+      );
+    }
   }
-  return { scheduled: times.length, denied: false };
+
+  // The next two days — full slate with generic copy, refreshed with real
+  // numbers as soon as the app runs again.
+  for (let day = 1; day <= 2; day++) {
+    let i = 0;
+    for (const m of times) {
+      const d = new Date();
+      d.setDate(d.getDate() + day);
+      d.setHours(Math.floor(m / 60), m % 60, 0, 0);
+      const g = GENERIC[i++ % GENERIC.length];
+      await scheduleAt(d, g.title, g.body);
+    }
+  }
+
+  return { scheduled, denied: false };
 }

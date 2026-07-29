@@ -132,6 +132,7 @@ export default function You() {
 
 /// Reminder preferences — every change reschedules the local notifications.
 function NotificationSettings() {
+  const app = useApp();
   const [prefs, setPrefs] = useState<ReminderPrefs>(DEFAULT_PREFS);
 
   useEffect(() => {
@@ -140,7 +141,13 @@ function NotificationSettings() {
 
   const save = (next: ReminderPrefs) => {
     setPrefs(next);
-    saveReminderPrefs(next).then(({ scheduled, denied }) => {
+    const status = app.profile
+      ? {
+        remainingMl: Math.max(0, app.effectiveGoal - app.todayTotal),
+        useOz: app.profile.unit === 'oz',
+      }
+      : null;
+    saveReminderPrefs(next, status).then(({ scheduled, denied }) => {
       if (denied) {
         showToast('Enable notifications in Settings');
       } else if (next.on && scheduled > 0) {
