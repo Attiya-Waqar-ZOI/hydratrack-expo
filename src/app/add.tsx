@@ -8,7 +8,7 @@ import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useApp } from '@/lib/app-state';
-import { allBeverages, beverageById, fmtVol } from '@/lib/engines';
+import { allBeverages, beverageById, fmtVol, todayKey } from '@/lib/engines';
 import { Ruler, RulerScrollView } from '@/lib/ruler';
 import { showToast } from '@/lib/toast';
 import { C, F, btnPrimary } from '@/lib/theme';
@@ -39,9 +39,11 @@ export default function AddDrink() {
 
   const log = () => {
     const at = hoursAgo > 0 ? new Date(Date.now() - hoursAgo * 3600_000) : undefined;
+    // A back-dated time can cross midnight; say so, or the log looks lost.
+    const backdated = at && todayKey(at) !== todayKey();
     const id = app.addDrink(ml, bev, at);
     router.back();
-    showToast(`${fmtVol(ml, !!useOz)} ${bev.name} added`, {
+    showToast(`${fmtVol(ml, !!useOz)} ${bev.name} added${backdated ? ' to yesterday' : ''}`, {
       actionLabel: 'Undo',
       onAction: () => app.undo(id),
     });
