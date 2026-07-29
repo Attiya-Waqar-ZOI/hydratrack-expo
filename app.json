@@ -6,14 +6,17 @@
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "hydratrackexpo",
-    "userInterfaceStyle": "automatic",
+    "userInterfaceStyle": "light",
     "splash": {
       "image": "./assets/images/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#0A0D10"
+      "backgroundColor": "#fbfcfd"
     },
     "ios": {
-      "icon": "./assets/expo.icon"
+      "icon": "./assets/expo.icon",
+      "infoPlist": {
+        "NSMotionUsageDescription": "HydraTrack reads your step count to raise your daily water goal on active days."
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -33,7 +36,7 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#0A0D10",
+          "backgroundColor": "#fbfcfd",
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 76
         }

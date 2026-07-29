@@ -1,19 +1,27 @@
+// You — port of the design: name headline with profile line and Edit,
+// then divider-ruled rows (title + summary left, segmented control right).
+// Custom goal opens the ruler; reminders show a count stepper and the
+// scheduled times as quiet chips.
 import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { autoGoal, useApp } from '@/lib/app-state';
+import { AppHeader, clock12 } from '@/lib/chrome';
 import {
-  ACTIVITY_LABELS, ActivityLevel, BMI_LABELS, Climate, bmiCategory, fmtVol,
+  ACTIVITY_LABELS, ActivityLevel, Climate, GENDER_LABELS, Gender, fmtVol,
 } from '@/lib/engines';
-import { GlowPanel } from '@/lib/glow';
 import {
-  DEFAULT_PREFS, ReminderPrefs, fmtClock, loadReminderPrefs, reminderTimes,
+  DEFAULT_PREFS, ReminderPrefs, loadReminderPrefs, reminderTimes,
   saveReminderPrefs,
 } from '@/lib/reminders';
+import { Ruler } from '@/lib/ruler';
+import { stepsEnabled } from '@/lib/steps';
 import { showToast } from '@/lib/toast';
-import { C } from '@/lib/theme';
+import { C, F, T } from '@/lib/theme';
+
+const GOAL = { min: 1000, max: 6000, px: 0.36, step: 50 };
 
 export default function You() {
   const app = useApp();
@@ -27,15 +35,13 @@ export default function You() {
     if (custom) {
       app.saveProfile({ ...p, useCustomGoal: 1, customGoalMl: p.dailyGoalMl });
     } else {
-      const g = autoGoal(p.weightKg, p.activity as ActivityLevel, p.climate as Climate, p.bmi);
+      const g = autoGoal(p.weightKg, p.activity as ActivityLevel, p.climate as Climate, p.gender as Gender, p.age);
       app.saveProfile({ ...p, useCustomGoal: 0, dailyGoalMl: g });
     }
   };
 
-  const nudgeGoal = (delta: number) => {
-    const g = Math.min(6000, Math.max(500, p.dailyGoalMl + delta));
-    app.saveProfile({ ...p, dailyGoalMl: g, customGoalMl: g, useCustomGoal: 1 });
-  };
+  const setGoal = (ml: number) =>
+    app.saveProfile({ ...p, dailyGoalMl: ml, customGoalMl: ml, useCustomGoal: 1 });
 
   const confirmReset = () =>
     Alert.alert('Reset all data?', 'This permanently clears your profile and logs.', [
@@ -48,90 +54,119 @@ export default function You() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: C.bg }}>
-      <ScrollView contentContainerStyle={{ padding: 20, gap: 14, paddingBottom: 110 }}>
-        <Text style={s.h1}>You</Text>
-
-        {/* Identity */}
-        <GlowPanel glow colors={['rgba(123,232,245,0.7)', 'rgba(27,143,166,0.7)']}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
-            <View style={s.avatar}>
-              <Text style={{ fontSize: 26 }}>{p.gender === 'male' ? '👨' : '👩'}</Text>
-            </View>
-            <View>
-              <Text style={s.name}>{p.name}</Text>
-              <Text style={s.sub}>
-                {p.age} yrs · {p.gender === 'male' ? 'Male' : 'Female'} ·{' '}
-                {ACTIVITY_LABELS[p.activity as ActivityLevel]}
-              </Text>
-            </View>
-          </View>
-        </GlowPanel>
-
-        {/* Metrics */}
-        <View style={{ flexDirection: 'row', gap: 12 }}>
-          <View style={{ flex: 1 }}>
-            <GlowPanel colors={['rgba(61,220,151,0.6)', 'rgba(123,232,245,0.6)']}>
-              <Text style={s.sub}>🫀 BMI</Text>
-              <Text style={s.metric}>{p.bmi.toFixed(1)}</Text>
-              <Text style={{ color: C.success, fontWeight: '700' }}>
-                {BMI_LABELS[bmiCategory(p.bmi)]}
-              </Text>
-            </GlowPanel>
+      <AppHeader />
+      <ScrollView contentContainerStyle={{ paddingHorizontal: 26, paddingTop: 22, paddingBottom: 24 }}>
+        {/* Identity: monogram, name, facts */}
+        <View style={s.identity}>
+          <View style={s.avatar}>
+            <Text style={s.avatarTxt}>{(p.name.trim()[0] ?? 'H').toUpperCase()}</Text>
           </View>
           <View style={{ flex: 1 }}>
-            <GlowPanel colors={['rgba(37,199,224,0.6)', 'rgba(27,143,166,0.6)']}>
-              <Text style={s.sub}>🎯 Daily goal</Text>
-              <Text style={s.metric}>{fmtVol(p.dailyGoalMl, useOz)}</Text>
-              <Text style={{ color: C.primary, fontWeight: '700' }}>
-                {p.useCustomGoal ? 'Custom' : 'Auto'}
-              </Text>
-            </GlowPanel>
+            <Text style={s.idName}>{p.name}</Text>
+            <Text style={[T.body, { fontSize: 14, marginTop: 3 }]}>
+              {p.age} yrs · {GENDER_LABELS[p.gender as Gender] ?? p.gender}
+            </Text>
+            <Text style={[T.small, { fontSize: 13, marginTop: 1 }]}>
+              {ACTIVITY_LABELS[p.activity as ActivityLevel]}
+            </Text>
           </View>
+          <Pressable onPress={() => router.push({ pathname: '/onboarding', params: { edit: '1' } })} hitSlop={8}>
+            <Text style={s.ghost}>Edit</Text>
+          </Pressable>
         </View>
 
-        {/* Goal */}
-        <GlowPanel colors={['rgba(37,199,224,0.55)', 'rgba(123,232,245,0.55)']}>
-          <Text style={s.cardTitle}>🎯 Daily goal</Text>
-          <View style={s.row}>
-            <Seg label="Auto" on={!p.useCustomGoal} onPress={() => setGoalMode(false)} />
-            <Seg label="Custom" on={!!p.useCustomGoal} onPress={() => setGoalMode(true)} />
+        {/* Daily goal */}
+        <View style={s.row}>
+          <View style={s.rowHead}>
+            <View style={{ flex: 1 }}>
+              <Text style={s.rowTitle}>Daily goal</Text>
+              <Text style={s.rowSub}>
+                {fmtVol(p.dailyGoalMl, useOz)}, {p.useCustomGoal ? 'Set by you' : 'Automatic'}
+              </Text>
+            </View>
+            <Seg
+              options={['Auto', 'Custom']}
+              selected={p.useCustomGoal ? 1 : 0}
+              onSelect={(i) => setGoalMode(i === 1)}
+            />
           </View>
           {!!p.useCustomGoal && (
-            <View style={[s.row, { marginTop: 12, alignItems: 'center' }]}>
-              <Btn label="− 100" onPress={() => nudgeGoal(-100)} />
-              <Text style={[s.metric, { marginHorizontal: 14 }]}>
-                {fmtVol(p.dailyGoalMl, useOz)}
-              </Text>
-              <Btn label="＋ 100" onPress={() => nudgeGoal(100)} />
+            <View style={{ marginTop: 12 }}>
+              <Text style={s.readout}>{fmtVol(p.dailyGoalMl, useOz)}</Text>
+              <Ruler
+                value={p.dailyGoalMl} min={GOAL.min} max={GOAL.max} px={GOAL.px} step={GOAL.step}
+                labels={Array.from({ length: 11 }, (_, i) => {
+                  const v = 1000 + i * 500;
+                  return { left: (v - GOAL.min) * GOAL.px, text: (v / 1000).toFixed(1) };
+                })}
+                onChange={setGoal}
+              />
             </View>
           )}
-        </GlowPanel>
+        </View>
 
-        {/* Notifications */}
+        {/* Reminders */}
         <NotificationSettings />
 
-        {/* Units */}
-        <GlowPanel colors={['rgba(37,199,224,0.55)', 'rgba(27,143,166,0.55)']}>
-          <Text style={s.cardTitle}>📏 Volume unit</Text>
-          <View style={s.row}>
-            <Seg label="ml" on={!useOz} onPress={() => setUnit('ml')} />
-            <Seg label="oz" on={useOz} onPress={() => setUnit('oz')} />
-          </View>
-        </GlowPanel>
+        {/* Steps */}
+        <StepSettings />
 
-        <GlowPanel colors={['rgba(240,98,119,0.55)', 'rgba(240,98,119,0.35)']}>
-          <Pressable onPress={confirmReset}>
-            <Text style={{ color: C.danger, fontWeight: '800' }}>🗑 Reset all data</Text>
+        {/* Units */}
+        <View style={[s.row, s.rowHead]}>
+          <View style={{ flex: 1 }}>
+            <Text style={s.rowTitle}>Volume unit</Text>
+            <Text style={s.rowSub}>How amounts are shown</Text>
+          </View>
+          <Seg options={['ml', 'oz']} selected={useOz ? 1 : 0} onSelect={(i) => setUnit(i === 1 ? 'oz' : 'ml')} />
+        </View>
+
+        {/* Reset */}
+        <View style={[s.row, { paddingBottom: 4 }]}>
+          <Pressable
+            onPress={confirmReset}
+            style={({ pressed }) => [s.dangerBtn, pressed && { backgroundColor: C.accent2200 }]}
+          >
+            <Text style={{ fontFamily: F.heading, fontSize: 15, color: C.accent2Deep }}>Reset all data</Text>
           </Pressable>
-        </GlowPanel>
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
 }
 
-/// Reminder preferences — count plus a fully custom time window. Every
-/// change reschedules the local notifications on the device clock.
+/// Step-aware goal: motion-sensor steps add to the daily target.
+function StepSettings() {
+  const app = useApp();
+  const [on, setOn] = useState(false);
+
+  useEffect(() => { stepsEnabled().then(setOn); }, []);
+
+  const toggle = async (want: boolean) => {
+    const ok = await app.setStepTracking(want);
+    setOn(want && ok);
+    if (want && !ok) showToast('Motion access denied — enable it in Settings');
+  };
+
+  const sub = !on
+    ? 'Active days add to your goal'
+    : app.stepsToday == null
+      ? 'On — reading your steps'
+      : `${app.stepsToday.toLocaleString()} steps today${app.stepBoost > 0 ? ` · +${app.stepBoost} ml` : ''}`;
+
+  return (
+    <View style={[s.row, s.rowHead]}>
+      <View style={{ flex: 1 }}>
+        <Text style={s.rowTitle}>Steps raise the goal</Text>
+        <Text style={s.rowSub}>{sub}</Text>
+      </View>
+      <Seg options={['Off', 'On']} selected={on ? 1 : 0} onSelect={(i) => toggle(i === 1)} />
+    </View>
+  );
+}
+
+/// Reminder preferences — every change reschedules the local notifications.
 function NotificationSettings() {
+  const app = useApp();
   const [prefs, setPrefs] = useState<ReminderPrefs>(DEFAULT_PREFS);
 
   useEffect(() => {
@@ -140,117 +175,114 @@ function NotificationSettings() {
 
   const save = (next: ReminderPrefs) => {
     setPrefs(next);
-    saveReminderPrefs(next).then(({ scheduled, denied }) => {
+    const status = app.profile
+      ? {
+        remainingMl: Math.max(0, app.effectiveGoal - app.todayTotal),
+        useOz: app.profile.unit === 'oz',
+      }
+      : null;
+    saveReminderPrefs(next, status).then(({ scheduled, denied }) => {
       if (denied) {
-        showToast('🔕 Allow notifications in iOS Settings to get reminders');
+        showToast('Enable notifications in Settings');
       } else if (next.on && scheduled > 0) {
-        showToast(`🔔 ${scheduled} daily reminders, ${fmtClock(next.startMin)} – ${fmtClock(next.endMin)}`);
+        showToast(`${scheduled} reminders set`);
       }
     });
   };
 
   const times = reminderTimes(prefs);
-  const STEP = 30; // minutes per tap on the time steppers
+  const summary = prefs.on
+    ? `${prefs.perDay} a day, ${clock12(prefs.startMin)} to ${clock12(prefs.endMin)}`
+    : 'No nudges';
 
   return (
-    <GlowPanel colors={['rgba(27,143,166,0.6)', 'rgba(37,199,224,0.5)']}>
-      <Text style={s.cardTitle}>🔔 Reminders</Text>
-      <View style={s.row}>
-        <Seg label="Off" on={!prefs.on} onPress={() => save({ ...prefs, on: false })} />
-        <Seg label="On" on={prefs.on} onPress={() => save({ ...prefs, on: true })} />
+    <View style={s.row}>
+      <View style={s.rowHead}>
+        <View style={{ flex: 1 }}>
+          <Text style={s.rowTitle}>Reminders</Text>
+          <Text style={s.rowSub}>{summary}</Text>
+        </View>
+        <Seg
+          options={['Off', 'On']}
+          selected={prefs.on ? 1 : 0}
+          onSelect={(i) => save({ ...prefs, on: i === 1 })}
+        />
       </View>
       {prefs.on && (
-        <>
-          <View style={[s.row, { marginTop: 12, alignItems: 'center' }]}>
-            <Btn label="−" onPress={() => save({ ...prefs, perDay: Math.max(2, prefs.perDay - 1) })} />
-            <Text style={[s.metric, { marginHorizontal: 14, fontSize: 18 }]}>
-              {prefs.perDay} / day
-            </Text>
-            <Btn label="＋" onPress={() => save({ ...prefs, perDay: Math.min(12, prefs.perDay + 1) })} />
+        <View style={{ gap: 14, marginTop: 18, paddingLeft: 2 }}>
+          <View style={s.countRow}>
+            <Text style={{ fontFamily: F.body, fontSize: 16, color: C.text }}>How many a day</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
+              <Pressable onPress={() => save({ ...prefs, perDay: Math.max(2, prefs.perDay - 1) })} hitSlop={10}>
+                <Text style={s.stepBtn}>−</Text>
+              </Pressable>
+              <Text style={s.count}>{prefs.perDay}</Text>
+              <Pressable onPress={() => save({ ...prefs, perDay: Math.min(12, prefs.perDay + 1) })} hitSlop={10}>
+                <Text style={s.stepBtn}>+</Text>
+              </Pressable>
+            </View>
           </View>
-
-          <TimeRow
-            label="⏰ First reminder"
-            min={prefs.startMin}
-            onChange={(m) => save({
-              ...prefs,
-              startMin: Math.max(0, Math.min(prefs.endMin - STEP, m)),
-            })}
-          />
-          <TimeRow
-            label="🌙 Last reminder"
-            min={prefs.endMin}
-            onChange={(m) => save({
-              ...prefs,
-              endMin: Math.min(23 * 60 + 30, Math.max(prefs.startMin + STEP, m)),
-            })}
-          />
-
-          <View style={[s.row, { marginTop: 12, flexWrap: 'wrap' }]}>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
             {times.map((t) => (
               <View key={t} style={s.timeChip}>
-                <Text style={{ color: C.mint, fontWeight: '700', fontSize: 12 }}>{fmtClock(t)}</Text>
+                <Text style={{ fontFamily: F.body, fontSize: 12.5, color: C.text }}>{clock12(t)}</Text>
               </View>
             ))}
           </View>
-          <Text style={{ color: C.muted, fontSize: 11, marginTop: 10 }}>
-            Times follow your phone’s clock and timezone automatically.
-          </Text>
-        </>
+        </View>
       )}
-    </GlowPanel>
-  );
-}
-
-function TimeRow({ label, min, onChange }: {
-  label: string; min: number; onChange: (m: number) => void;
-}) {
-  return (
-    <View style={[s.row, { marginTop: 12, alignItems: 'center', justifyContent: 'space-between' }]}>
-      <Text style={{ color: C.text, fontWeight: '700', flex: 1 }}>{label}</Text>
-      <Btn label="−" onPress={() => onChange(min - 30)} />
-      <Text style={[s.metric, { marginHorizontal: 10, fontSize: 16, minWidth: 84, textAlign: 'center' }]}>
-        {fmtClock(min)}
-      </Text>
-      <Btn label="＋" onPress={() => onChange(min + 30)} />
     </View>
   );
 }
 
-function Seg({ label, on, onPress }: { label: string; on: boolean; onPress: () => void }) {
+/// Bordered segmented control; selected cell fills with accent.
+function Seg({ options, selected, onSelect }: {
+  options: string[]; selected: number; onSelect: (i: number) => void;
+}) {
   return (
-    <Pressable onPress={onPress} style={[s.seg, on && { backgroundColor: C.primary }]}>
-      <Text style={{ color: on ? '#fff' : C.muted, fontWeight: '700' }}>{label}</Text>
-    </Pressable>
-  );
-}
-
-function Btn({ label, onPress }: { label: string; onPress: () => void }) {
-  return (
-    <Pressable onPress={onPress} style={s.seg}>
-      <Text style={{ color: C.primary, fontWeight: '800' }}>{label}</Text>
-    </Pressable>
+    <View style={s.seg}>
+      {options.map((o, i) => (
+        <Pressable
+          key={o}
+          onPress={() => onSelect(i)}
+          style={[s.segOpt, i > 0 && { borderLeftWidth: 1, borderLeftColor: C.divider },
+            selected === i && { backgroundColor: C.accent }]}
+        >
+          <Text style={{ fontFamily: F.body, fontSize: 13, color: selected === i ? C.onAccent : C.text }}>
+            {o}
+          </Text>
+        </Pressable>
+      ))}
+    </View>
   );
 }
 
 const s = StyleSheet.create({
-  h1: { color: C.text, fontSize: 26, fontWeight: '900' },
+  identity: { flexDirection: 'row', alignItems: 'center', gap: 16, paddingVertical: 6, paddingBottom: 24 },
   avatar: {
-    width: 54, height: 54, borderRadius: 27, backgroundColor: C.surfaceAlt,
+    width: 58, height: 58, borderRadius: 29,
+    backgroundColor: C.accent100,
     alignItems: 'center', justifyContent: 'center',
   },
-  name: { color: C.text, fontSize: 20, fontWeight: '800' },
-  sub: { color: C.muted, marginTop: 2 },
-  metric: { color: C.text, fontSize: 22, fontWeight: '900', marginVertical: 2 },
-  cardTitle: { color: C.text, fontWeight: '800', marginBottom: 10 },
-  row: { flexDirection: 'row', gap: 10 },
-  seg: {
-    backgroundColor: C.surfaceAlt, borderRadius: 12,
-    paddingHorizontal: 18, paddingVertical: 10,
-  },
-  timeChip: {
-    backgroundColor: 'rgba(37,199,224,0.12)', borderRadius: 10,
-    borderWidth: 1, borderColor: 'rgba(37,199,224,0.35)',
-    paddingHorizontal: 10, paddingVertical: 5,
+  avatarTxt: { fontFamily: F.heading, fontSize: 26, color: C.accentDeep, marginTop: -2 },
+  idName: { fontFamily: F.heading, fontSize: 22, letterSpacing: -0.4, color: C.text },
+  ghost: { fontFamily: F.heading, fontSize: 15, color: C.accentDeep, paddingVertical: 6 },
+  row: { borderTopWidth: 1, borderTopColor: C.divider, paddingVertical: 20 },
+  rowHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
+  rowTitle: { fontFamily: F.heading, fontSize: 21, letterSpacing: -0.3, color: C.text },
+  rowSub: { fontFamily: F.body, fontSize: 14, color: C.muted, marginTop: 2 },
+  readout: { fontFamily: F.heading, fontSize: 30, letterSpacing: -0.7, color: C.text, marginBottom: 2 },
+  seg: { flexDirection: 'row', borderWidth: 1, borderColor: C.divider, borderRadius: 999, overflow: 'hidden' },
+  segOpt: { paddingVertical: 6, paddingHorizontal: 15 },
+  countRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
+  stepBtn: { fontFamily: F.body, fontSize: 20, color: C.accentDeep, width: 24, textAlign: 'center' },
+  count: { fontFamily: F.heading, fontSize: 19, minWidth: 22, textAlign: 'center', color: C.text },
+  timeChip: { backgroundColor: C.neutral200, borderRadius: 999, paddingVertical: 5, paddingHorizontal: 12 },
+  dangerBtn: {
+    backgroundColor: C.accent2100,
+    borderWidth: 1, borderColor: C.accent2200,
+    borderRadius: 999, height: 44,
+    paddingHorizontal: 22, alignSelf: 'center',
+    alignItems: 'center', justifyContent: 'center',
   },
 });

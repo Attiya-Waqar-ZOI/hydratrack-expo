@@ -1,13 +1,12 @@
-// Glowing bottom toast — replaces blocking Alert dialogs.
+// Bottom toast — replaces blocking Alert dialogs.
 // showToast('250 ml added', { actionLabel: 'Undo', onAction: ... })
 // slides up over the tab bar and auto-dismisses.
-import { LinearGradient } from 'expo-linear-gradient';
 import React, { useEffect, useRef, useState } from 'react';
 import { Animated, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 
-const NATIVE = Platform.OS !== 'web';
+import { C, F, R } from './theme';
 
-import { C } from './theme';
+const NATIVE = Platform.OS !== 'web';
 
 interface ToastData {
   id: number;
@@ -66,23 +65,17 @@ export function ToastHost() {
         },
       ]}
     >
-      <LinearGradient
-        colors={[C.mint, C.primary, C.grape]}
-        start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-        style={st.border}
-      >
-        <View style={st.inner}>
-          <Text style={st.msg}>{toast.msg}</Text>
-          {toast.actionLabel && (
-            <Pressable
-              hitSlop={10}
-              onPress={() => { toast.onAction?.(); hide(); }}
-            >
-              <Text style={st.action}>{toast.actionLabel}</Text>
-            </Pressable>
-          )}
-        </View>
-      </LinearGradient>
+      <View style={st.inner}>
+        <Text style={st.msg}>{toast.msg}</Text>
+        {toast.actionLabel && (
+          <Pressable
+            hitSlop={10}
+            onPress={() => { toast.onAction?.(); hide(); }}
+          >
+            <Text style={st.action}>{toast.actionLabel}</Text>
+          </Pressable>
+        )}
+      </View>
     </Animated.View>
   );
 }
@@ -91,15 +84,15 @@ const st = StyleSheet.create({
   wrap: {
     position: 'absolute', left: 24, right: 24, bottom: 96,
     alignItems: 'center',
-    shadowColor: C.primary, shadowOpacity: 0.55, shadowRadius: 18,
-    shadowOffset: { width: 0, height: 4 }, elevation: 12,
+    shadowColor: '#000', shadowOpacity: 0.35, shadowRadius: 14,
+    shadowOffset: { width: 0, height: 4 }, elevation: 8,
   },
-  border: { borderRadius: 22, padding: 1.4, width: '100%' },
   inner: {
-    backgroundColor: '#0B1120', borderRadius: 20.6,
-    paddingHorizontal: 18, paddingVertical: 13,
+    width: '100%',
+    backgroundColor: C.ink, borderRadius: R.md,
+    paddingHorizontal: 16, paddingVertical: 14,
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
   },
-  msg: { color: C.text, fontWeight: '700', flex: 1 },
-  action: { color: C.mint, fontWeight: '800', marginLeft: 16 },
+  msg: { color: '#f3f2f2', fontFamily: F.body, fontSize: 14, flex: 1 },
+  action: { color: C.accent300, fontFamily: F.heading, fontSize: 14, marginLeft: 16 },
 });

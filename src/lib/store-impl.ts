@@ -3,7 +3,7 @@
 // so expo-sqlite never enters the web bundle.
 import * as SQLite from 'expo-sqlite';
 
-import type { DayContextRow, LogRow, Profile, Store } from './types';
+import type { CustomBeverageRow, DayContextRow, LogRow, Profile, Store } from './types';
 
 export function createStore(): Store {
   const db = SQLite.openDatabaseSync('hydratrack.db');
@@ -24,6 +24,9 @@ export function createStore(): Store {
       dayKey TEXT PRIMARY KEY, place TEXT, tempC REAL,
       humidity REAL, elevationM REAL, note TEXT
     );
+    CREATE TABLE IF NOT EXISTS custom_beverage (
+      id TEXT PRIMARY KEY, name TEXT, factor REAL
+    );
   `);
   return {
     getProfile: () =>
@@ -39,7 +42,7 @@ export function createStore(): Store {
          p.dailyGoalMl, p.bmi],
       ),
     clearAll: () =>
-      db.execSync('DELETE FROM profile; DELETE FROM water_log; DELETE FROM day_context;'),
+      db.execSync('DELETE FROM profile; DELETE FROM water_log; DELETE FROM day_context; DELETE FROM custom_beverage;'),
     addLog: (l) =>
       db.runSync(
         'INSERT INTO water_log (id,amountMl,volumeMl,beverageId,loggedAt,dayKey) VALUES (?,?,?,?,?,?)',
@@ -61,5 +64,14 @@ export function createStore(): Store {
         'INSERT OR REPLACE INTO day_context (dayKey,place,tempC,humidity,elevationM,note) VALUES (?,?,?,?,?,?)',
         [c.dayKey, c.place, c.tempC, c.humidity, c.elevationM, c.note],
       ),
+    customBeverages: () =>
+      db.getAllSync<CustomBeverageRow>('SELECT * FROM custom_beverage ORDER BY name ASC'),
+    addCustomBeverage: (b) =>
+      db.runSync(
+        'INSERT OR REPLACE INTO custom_beverage (id,name,factor) VALUES (?,?,?)',
+        [b.id, b.name, b.factor],
+      ),
+    deleteCustomBeverage: (id) =>
+      db.runSync('DELETE FROM custom_beverage WHERE id = ?', [id]),
   };
 }
