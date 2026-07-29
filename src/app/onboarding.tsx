@@ -31,18 +31,18 @@ const GENDERS: { id: Gender; label: string }[] = [
   { id: 'na', label: 'Rather not say' },
 ];
 
-const ACTIVITIES: { id: ActivityLevel; label: string; desc: string }[] = [
-  { id: 'sedentary', label: 'Sedentary', desc: 'Desk work, little exercise.' },
-  { id: 'light', label: 'Lightly active', desc: 'Walks or chores a few days a week.' },
-  { id: 'moderate', label: 'Moderately active', desc: 'Exercise three to five days a week.' },
-  { id: 'high', label: 'Very active', desc: 'Hard training most days.' },
-  { id: 'athlete', label: 'Athlete', desc: 'Daily training or physical work.' },
+const ACTIVITIES: { id: ActivityLevel; label: string; desc: string; emoji: string }[] = [
+  { id: 'sedentary', label: 'Sedentary', desc: 'Desk work, little exercise.', emoji: '🛋️' },
+  { id: 'light', label: 'Lightly active', desc: 'Walks or chores a few days a week.', emoji: '🚶' },
+  { id: 'moderate', label: 'Moderately active', desc: 'Exercise three to five days a week.', emoji: '🏃' },
+  { id: 'high', label: 'Very active', desc: 'Hard training most days.', emoji: '🏋️' },
+  { id: 'athlete', label: 'Athlete', desc: 'Daily training or physical work.', emoji: '🏆' },
 ];
 
-const CLIMATES: { id: Climate; label: string; desc: string }[] = [
-  { id: 'cold', label: 'Cold', desc: 'Under 15°C most of the year.' },
-  { id: 'moderate', label: 'Temperate', desc: 'Four seasons, comfortable most days.' },
-  { id: 'hot', label: 'Hot', desc: 'Above 28°C, you sweat daily.' },
+const CLIMATES: { id: Climate; label: string; desc: string; emoji: string }[] = [
+  { id: 'cold', label: 'Cold', desc: 'Under 15°C most of the year.', emoji: '❄️' },
+  { id: 'moderate', label: 'Temperate', desc: 'Four seasons, comfortable most days.', emoji: '🌤️' },
+  { id: 'hot', label: 'Hot', desc: 'Above 28°C, you sweat daily.', emoji: '🔥' },
 ];
 
 export default function Onboarding() {
@@ -87,30 +87,45 @@ export default function Onboarding() {
   const goal = goalSet ?? recommended;
   const last = step === 6;
   const nameMissing = name.trim() === '';
+  // Location granted → live weather drives the goal, so the manual
+  // climate step (5) is skipped entirely.
+  const skipClimate = location === 'allow';
+  const totalSteps = skipClimate ? 5 : 6;
+  const shownStep = skipClimate && step === 6 ? 5 : step;
 
   useEffect(() => { scroll.current?.scrollTo({ y: 0, animated: false }); }, [step]);
 
   const next = () => {
     if (step === 1 && nameMissing) { setNameTouched(true); return; }
     if (last) { finish(); return; }
+    if (step === 4 && skipClimate) { setStep(6); return; }
     setStep(step + 1);
   };
 
   // "Allow location" only sticks if the OS permission is actually granted:
   // detectEnvironment() raises the system prompt and returns null on denial.
+  // A grant also seeds the climate from the detected temperature, since the
+  // manual climate step won't be shown.
   const askLocation = async () => {
     if (locBusy) return;
     setLocBusy(true);
     const ctx = await app.detectEnvironment().catch(() => null);
     setLocBusy(false);
     setLocation(ctx ? 'allow' : 'skip');
+    if (ctx?.tempC != null) {
+      setClimate(ctx.tempC >= 28 ? 'hot' : ctx.tempC < 15 ? 'cold' : 'moderate');
+    }
     setDetected(
       ctx
         ? `${ctx.place ?? 'Location found'}${ctx.tempC != null ? ` · ${Math.round(ctx.tempC)}°C right now` : ''}`
         : null,
     );
   };
-  const back = () => step > 1 && setStep(step - 1);
+  const back = () => {
+    if (step <= 1) return;
+    if (step === 6 && skipClimate) { setStep(4); return; }
+    setStep(step - 1);
+  };
 
   const finish = () => {
     app.saveProfile({
@@ -147,10 +162,10 @@ export default function Onboarding() {
           ) : null}
           <Droplet />
           <Text style={s.brand}>{editing ? 'Edit profile' : 'HydraTrack'}</Text>
-          <Text style={s.stepLabel}>{step} of 6</Text>
+          <Text style={s.stepLabel}>{shownStep} of {totalSteps}</Text>
         </View>
         <View style={s.track}>
-          <View style={[s.fill, { width: `${(step / 6) * 100}%` }]} />
+          <View style={[s.fill, { width: `${(shownStep / totalSteps) * 100}%` }]} />
         </View>
       </View>
 
@@ -282,7 +297,7 @@ export default function Onboarding() {
             <View style={{ gap: 14 }}>
               {ACTIVITIES.map((a) => (
                 <RadioRow
-                  key={a.id} label={a.label} desc={a.desc}
+                  key={a.id} label={a.label} desc={a.desc} emoji={a.emoji}
                   selected={activity === a.id} onPress={() => setActivity(a.id)}
                 />
               ))}
@@ -293,6 +308,33 @@ export default function Onboarding() {
         {step === 4 && (
           <View style={{ gap: 22 }}>
             <View>
+              <Text style={s.h1o}>Follow the{'\n'}weather</Text>
+              <Text style={[T.body, { fontSize: 15, marginTop: 6, maxWidth: 290 }]}>
+                With location on, your goal moves with the heat and altitude of where you actually are — no manual setup.
+              </Text>
+            </View>
+            <View style={{ gap: 16 }}>
+              <RadioRow
+                label="Allow location" emoji="📍"
+                desc={locBusy
+                  ? 'Asking for permission…'
+                  : detected ?? 'Your goal adapts to the day.'}
+                selected={location === 'allow'} onPress={askLocation}
+              />
+              <RadioRow
+                label="Not now" emoji="🌙" desc="Describe your climate yourself instead."
+                selected={location === 'skip'} onPress={() => setLocation('skip')}
+              />
+            </View>
+            <Text style={[T.body, { fontSize: 14 }]}>
+              Checked once a day. Coordinates never leave the device.
+            </Text>
+          </View>
+        )}
+
+        {step === 5 && (
+          <View style={{ gap: 22 }}>
+            <View>
               <Text style={s.h1o}>Where you{'\n'}live</Text>
               <Text style={[T.body, { fontSize: 15, marginTop: 6, maxWidth: 260 }]}>
                 Heat and dry air raise what you lose in a day.
@@ -301,38 +343,11 @@ export default function Onboarding() {
             <View style={{ gap: 16 }}>
               {CLIMATES.map((c) => (
                 <RadioRow
-                  key={c.id} label={c.label} desc={c.desc}
+                  key={c.id} label={c.label} desc={c.desc} emoji={c.emoji}
                   selected={climate === c.id} onPress={() => setClimate(c.id)}
                 />
               ))}
             </View>
-          </View>
-        )}
-
-        {step === 5 && (
-          <View style={{ gap: 22 }}>
-            <View>
-              <Text style={s.h1o}>Follow the{'\n'}weather</Text>
-              <Text style={[T.body, { fontSize: 15, marginTop: 6, maxWidth: 290 }]}>
-                Optional. With location on, your goal moves with the heat and altitude of where you actually are.
-              </Text>
-            </View>
-            <View style={{ gap: 16 }}>
-              <RadioRow
-                label="Allow location"
-                desc={locBusy
-                  ? 'Asking for permission…'
-                  : detected ?? 'Your goal adapts to the day.'}
-                selected={location === 'allow'} onPress={askLocation}
-              />
-              <RadioRow
-                label="Not now" desc="Keep a fixed goal; turn it on later."
-                selected={location === 'skip'} onPress={() => setLocation('skip')}
-              />
-            </View>
-            <Text style={[T.body, { fontSize: 14 }]}>
-              Checked once a day. Coordinates never leave the device.
-            </Text>
           </View>
         )}
 
@@ -482,17 +497,22 @@ function GoalReveal({ ml, adjusted }: { ml: number; adjusted: boolean }) {
 }
 
 /// Radio list row: 22px circle with accent dot, serif label, muted desc.
-function RadioRow({ label, desc, selected, onPress }: {
-  label: string; desc?: string; selected: boolean; onPress: () => void;
+function RadioRow({ label, desc, selected, onPress, emoji }: {
+  label: string; desc?: string; selected: boolean; onPress: () => void; emoji?: string;
 }) {
   return (
     <Pressable
       onPress={onPress}
-      style={({ pressed }) => [{ flexDirection: 'row', gap: 16 }, pressed && { opacity: 0.7 }]}
+      style={({ pressed }) => [{ flexDirection: 'row', gap: 16, alignItems: 'center' }, pressed && { opacity: 0.7 }]}
     >
       <View style={[s.radio, selected && { borderColor: C.accent }]}>
         {selected && <View style={s.radioDot} />}
       </View>
+      {emoji ? (
+        <View style={[s.medallion, selected && { backgroundColor: C.accent100 }]}>
+          <Text style={{ fontSize: 21 }}>{emoji}</Text>
+        </View>
+      ) : null}
       <View style={{ flex: 1 }}>
         <Text style={{ fontFamily: F.heading, fontSize: 21, lineHeight: 25, letterSpacing: -0.3, color: C.text }}>
           {label}
@@ -580,6 +600,11 @@ const s = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
   radioDot: { width: 11, height: 11, borderRadius: 5.5, backgroundColor: C.accent },
+  medallion: {
+    width: 42, height: 42, borderRadius: 21,
+    backgroundColor: C.surface,
+    alignItems: 'center', justifyContent: 'center',
+  },
   seg: {
     flexDirection: 'row', borderWidth: 1, borderColor: C.divider,
     borderRadius: R.md, overflow: 'hidden',

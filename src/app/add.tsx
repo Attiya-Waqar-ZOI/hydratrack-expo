@@ -14,6 +14,13 @@ import { showToast } from '@/lib/toast';
 import { C, F, btnPrimary } from '@/lib/theme';
 
 const AMT = { min: 50, max: 1000, px: 0.24, step: 50 };
+const PRESETS = [
+  { label: 'Half glass', ml: 125 },
+  { label: 'Glass', ml: 250 },
+  { label: 'Can', ml: 330 },
+  { label: 'Mug', ml: 350 },
+  { label: 'Bottle', ml: 500 },
+];
 const WHENS = [
   { label: 'Now', h: 0 }, { label: '1h ago', h: 1 }, { label: '2h ago', h: 2 },
   { label: '3h ago', h: 3 }, { label: '6h ago', h: 6 },
@@ -75,6 +82,20 @@ export default function AddDrink() {
               })}
               onChange={setMl}
             />
+          </View>
+          {/* Standard servings — tap to set the ruler */}
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 9, marginTop: 10 }}>
+            {PRESETS.map((p) => (
+              <Pressable
+                key={p.ml}
+                onPress={() => setMl(p.ml)}
+                style={[s.whenChip, ml === p.ml && s.whenChipOn]}
+              >
+                <Text style={{ fontFamily: F.body, fontSize: 13.5, color: C.text }}>
+                  {p.label} · {fmtVol(p.ml, !!useOz)}
+                </Text>
+              </Pressable>
+            ))}
           </View>
         </View>
 
