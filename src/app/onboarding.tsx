@@ -294,9 +294,9 @@ export default function Onboarding() {
               <Text style={s.h1o}>How active{'\n'}are you?</Text>
               <Text style={[T.body, { fontSize: 15, marginTop: 6 }]}>In a typical week.</Text>
             </View>
-            <View style={{ gap: 14 }}>
+            <View style={{ gap: 12 }}>
               {ACTIVITIES.map((a) => (
-                <RadioRow
+                <OptionCard
                   key={a.id} label={a.label} desc={a.desc} emoji={a.emoji}
                   selected={activity === a.id} onPress={() => setActivity(a.id)}
                 />
@@ -313,15 +313,15 @@ export default function Onboarding() {
                 With location on, your goal moves with the heat and altitude of where you actually are — no manual setup.
               </Text>
             </View>
-            <View style={{ gap: 16 }}>
-              <RadioRow
+            <View style={{ gap: 12 }}>
+              <OptionCard
                 label="Allow location" emoji="📍"
                 desc={locBusy
                   ? 'Asking for permission…'
                   : detected ?? 'Your goal adapts to the day.'}
                 selected={location === 'allow'} onPress={askLocation}
               />
-              <RadioRow
+              <OptionCard
                 label="Not now" emoji="🌙" desc="Describe your climate yourself instead."
                 selected={location === 'skip'} onPress={() => setLocation('skip')}
               />
@@ -340,9 +340,9 @@ export default function Onboarding() {
                 Heat and dry air raise what you lose in a day.
               </Text>
             </View>
-            <View style={{ gap: 16 }}>
+            <View style={{ gap: 12 }}>
               {CLIMATES.map((c) => (
-                <RadioRow
+                <OptionCard
                   key={c.id} label={c.label} desc={c.desc} emoji={c.emoji}
                   selected={climate === c.id} onPress={() => setClimate(c.id)}
                 />
@@ -497,31 +497,32 @@ function GoalReveal({ ml, adjusted }: { ml: number; adjusted: boolean }) {
 }
 
 /// Radio list row: 22px circle with accent dot, serif label, muted desc.
-function RadioRow({ label, desc, selected, onPress, emoji }: {
-  label: string; desc?: string; selected: boolean; onPress: () => void; emoji?: string;
+/// Selectable option card: a large pictorial block beside the label and
+/// description, accent-framed when chosen — the card interface from the
+/// original design, in Broadsheet clothes.
+function OptionCard({ label, desc, selected, onPress, emoji }: {
+  label: string; desc?: string; selected: boolean; onPress: () => void; emoji: string;
 }) {
   return (
     <Pressable
       onPress={onPress}
-      style={({ pressed }) => [{ flexDirection: 'row', gap: 16, alignItems: 'center' }, pressed && { opacity: 0.7 }]}
+      style={({ pressed }) => [s.optCard, selected && s.optCardOn, pressed && { opacity: 0.85 }]}
     >
-      <View style={[s.radio, selected && { borderColor: C.accent }]}>
-        {selected && <View style={s.radioDot} />}
+      <View style={[s.optArt, selected && { backgroundColor: C.accent100 }]}>
+        <Text style={{ fontSize: 32 }}>{emoji}</Text>
       </View>
-      {emoji ? (
-        <View style={[s.medallion, selected && { backgroundColor: C.accent100 }]}>
-          <Text style={{ fontSize: 21 }}>{emoji}</Text>
-        </View>
-      ) : null}
       <View style={{ flex: 1 }}>
-        <Text style={{ fontFamily: F.heading, fontSize: 21, lineHeight: 25, letterSpacing: -0.3, color: C.text }}>
+        <Text style={{ fontFamily: F.heading, fontSize: 19, lineHeight: 23, letterSpacing: -0.3, color: C.text }}>
           {label}
         </Text>
         {desc ? (
-          <Text style={{ fontFamily: F.body, fontSize: 14.5, lineHeight: 20, color: C.neutral600, marginTop: 3 }}>
+          <Text style={{ fontFamily: F.body, fontSize: 14, lineHeight: 19, color: C.neutral600, marginTop: 3 }}>
             {desc}
           </Text>
         ) : null}
+      </View>
+      <View style={[s.radio, { marginTop: 0 }, selected && { borderColor: C.accent }]}>
+        {selected && <View style={s.radioDot} />}
       </View>
     </Pressable>
   );
@@ -600,9 +601,15 @@ const s = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
   radioDot: { width: 11, height: 11, borderRadius: 5.5, backgroundColor: C.accent },
-  medallion: {
-    width: 42, height: 42, borderRadius: 21,
-    backgroundColor: C.surface,
+  optCard: {
+    flexDirection: 'row', alignItems: 'center', gap: 14,
+    borderWidth: 1, borderColor: C.divider, borderRadius: R.lg,
+    backgroundColor: C.surface, padding: 13,
+  },
+  optCardOn: { borderWidth: 1.5, borderColor: C.accent, padding: 12.5 },
+  optArt: {
+    width: 58, height: 58, borderRadius: R.md,
+    backgroundColor: C.bg,
     alignItems: 'center', justifyContent: 'center',
   },
   seg: {
