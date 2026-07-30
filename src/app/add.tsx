@@ -4,7 +4,9 @@
 // drinks by stating how much water a reference serving counts as.
 import { router } from 'expo-router';
 import React, { useState } from 'react';
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import {
+  ActivityIndicator, Alert, Platform, Pressable, StyleSheet, Text, TextInput, View,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useApp } from '@/lib/app-state';
@@ -12,6 +14,7 @@ import { allBeverages, beverageById, fmtVol, todayKey } from '@/lib/engines';
 import { Ruler, RulerScrollView } from '@/lib/ruler';
 import { showToast } from '@/lib/toast';
 import { C, F, btnPrimary } from '@/lib/theme';
+import { detectDrink, getApiKey } from '@/lib/vision';
 
 const AMT = { min: 50, max: 1000, px: 0.24, step: 50 };
 const PRESETS = [
@@ -32,6 +35,65 @@ export default function AddDrink() {
   const [bevId, setBevId] = useState('water');
   const [ml, setMl] = useState(250);
   const [hoursAgo, setHoursAgo] = useState(0);
+  const [scanning, setScanning] = useState(false);
+  const [guessNote, setGuessNote] = useState<string | null>(null);
+
+  const snap = async () => {
+    if (scanning) return;
+    const key = await getApiKey();
+    if (!key) {
+      showToast('Add your AI key first: You tab → Photo detection');
+      return;
+    }
+    if (Platform.OS === 'web') { pickImage(false); return; }
+    Alert.alert('Detect drink from a photo', 'The photo is sent to your AI provider to identify the drink and amount.', [
+      { text: 'Take photo', onPress: () => pickImage(true) },
+      { text: 'Choose from library', onPress: () => pickImage(false) },
+      { text: 'Cancel', style: 'cancel' },
+    ]);
+  };
+
+  const pickImage = async (camera: boolean) => {
+    try {
+      const ImagePicker = await import('expo-image-picker');
+      if (camera) {
+        const perm = await ImagePicker.requestCameraPermissionsAsync();
+        if (!perm.granted) { showToast('Camera access denied'); return; }
+      }
+      const result = camera
+        ? await ImagePicker.launchCameraAsync({ quality: 0.8 })
+        : await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.8 });
+      if (result.canceled || !result.assets?.[0]) return;
+
+      setScanning(true);
+      setGuessNote(null);
+      // Downscale before upload: cheaper, faster, and under the API's size cap.
+      const { manipulateAsync, SaveFormat } = await import('expo-image-manipulator');
+      const img = await manipulateAsync(
+        result.assets[0].uri,
+        [{ resize: { width: 1024 } }],
+        { compress: 0.7, format: SaveFormat.JPEG, base64: true },
+      );
+      const key = await getApiKey();
+      const guess = await detectDrink(img.base64!, key!);
+      setBevId(guess.beverage.id);
+      setMl(guess.amountMl);
+      setGuessNote(
+        `Looks like ${guess.label} · about ${guess.amountMl} ml`
+        + `${guess.confidence === 'low' ? ' (not sure — please check)' : ''}. Adjust if needed.`,
+      );
+    } catch (e) {
+      const raw = e instanceof Error ? e.message : String(e);
+      const msg = raw === 'empty' || raw === 'refused'
+        ? 'Could not identify the drink — try again or pick manually'
+        : `Scan failed — ${raw}`;
+      // Keep it on screen (toasts vanish too fast to read an API error).
+      setGuessNote(msg);
+      showToast(msg);
+    } finally {
+      setScanning(false);
+    }
+  };
 
   const bevs = allBeverages();
   const bev = beverageById(bevId);
@@ -69,6 +131,27 @@ export default function AddDrink() {
         contentContainerStyle={{ paddingHorizontal: 26, paddingBottom: 12, gap: 26 }}
         keyboardShouldPersistTaps="handled"
       >
+        {/* Photo detection — snap or upload, Claude fills in type + amount */}
+        <View>
+          <Pressable
+            onPress={snap}
+            disabled={scanning}
+            style={({ pressed }) => [s.snapBtn, pressed && { backgroundColor: C.accent100 }]}
+          >
+            {scanning
+              ? <ActivityIndicator color={C.accentDeep} />
+              : <Text style={{ fontSize: 20 }}>📷</Text>}
+            <Text style={s.snapTxt}>
+              {scanning ? 'Identifying your drink…' : 'Snap or upload a photo'}
+            </Text>
+          </Pressable>
+          {guessNote && (
+            <Text style={{ fontFamily: F.body, fontSize: 13.5, lineHeight: 19, color: C.neutral600, marginTop: 8 }}>
+              ✨ {guessNote}
+            </Text>
+          )}
+        </View>
+
         {/* Amount — first, per the flow: how much, then what */}
         <View>
           <View style={s.amtRow}>
@@ -324,4 +407,10 @@ const s = StyleSheet.create({
     borderWidth: 1, borderColor: C.divider,
   },
   smallBtnPrimary: { backgroundColor: C.accent, borderColor: C.accent },
+  snapBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10,
+    borderWidth: 1, borderColor: C.divider, borderRadius: 14,
+    backgroundColor: C.surface, paddingVertical: 13,
+  },
+  snapTxt: { fontFamily: F.heading, fontSize: 16, color: C.text },
 });

@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "HydraTrack",
-    "slug": "hydratrack-expo",
+    "slug": "hydra-track",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -15,8 +15,11 @@
     "ios": {
       "icon": "./assets/expo.icon",
       "infoPlist": {
-        "NSMotionUsageDescription": "HydraTrack reads your step count to raise your daily water goal on active days."
-      }
+        "NSMotionUsageDescription": "HydraTrack reads your step count to raise your daily water goal on active days.",
+        "NSCameraUsageDescription": "HydraTrack uses the camera to identify a drink and its amount from a photo.",
+        "NSPhotoLibraryUsageDescription": "HydraTrack lets you pick a drink photo so it can identify the drink and amount."
+      },
+      "bundleIdentifier": "com.tayyib-hassan.hydra-track"
     },
     "android": {
       "adaptiveIcon": {
@@ -41,11 +44,32 @@
           "imageWidth": 76
         }
       ],
-      "expo-sqlite"
+      "expo-sqlite",
+      [
+        "expo-notifications",
+        {
+          "sounds": [
+            "./assets/sounds/water_drop.wav"
+          ]
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "870b0b71-6540-467d-b627-ce5f50ce0f29"
+      }
+    },
+    "owner": "attiyazois-team",
+    "runtimeVersion": {
+      "policy": "sdkVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/870b0b71-6540-467d-b627-ce5f50ce0f29"
     }
   }
 }
