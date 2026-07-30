@@ -42,11 +42,11 @@ export default function AddDrink() {
     if (scanning) return;
     const key = await getApiKey();
     if (!key) {
-      showToast('Add your Anthropic API key in the You tab first');
+      showToast('Add your AI key first: You tab → Photo detection');
       return;
     }
     if (Platform.OS === 'web') { pickImage(false); return; }
-    Alert.alert('Detect drink from a photo', 'The photo is sent to Claude to identify the drink and amount.', [
+    Alert.alert('Detect drink from a photo', 'The photo is sent to your AI provider to identify the drink and amount.', [
       { text: 'Take photo', onPress: () => pickImage(true) },
       { text: 'Choose from library', onPress: () => pickImage(false) },
       { text: 'Cancel', style: 'cancel' },
