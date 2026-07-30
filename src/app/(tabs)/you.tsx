@@ -4,7 +4,7 @@
 // scheduled times as quiet chips.
 import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { autoGoal, useApp } from '@/lib/app-state';
@@ -20,6 +20,7 @@ import { Ruler } from '@/lib/ruler';
 import { stepsEnabled } from '@/lib/steps';
 import { showToast } from '@/lib/toast';
 import { C, F, T } from '@/lib/theme';
+import { getApiKey, setApiKey } from '@/lib/vision';
 
 const GOAL = { min: 1000, max: 6000, px: 0.36, step: 50 };
 
@@ -111,6 +112,9 @@ export default function You() {
         {/* Steps */}
         <StepSettings />
 
+        {/* Photo detection API key */}
+        <VisionSettings />
+
         {/* Units */}
         <View style={[s.row, s.rowHead]}>
           <View style={{ flex: 1 }}>
@@ -133,6 +137,79 @@ export default function You() {
     </SafeAreaView>
   );
 }
+
+/// Photo drink detection needs the user's own Anthropic API key —
+/// stored on this device only, never shipped in the app bundle.
+function VisionSettings() {
+  const [saved, setSaved] = useState(false);
+  const [draft, setDraft] = useState('');
+  const [editing, setEditing] = useState(false);
+
+  useEffect(() => { getApiKey().then((k) => setSaved(!!k)); }, []);
+
+  const save = async () => {
+    await setApiKey(draft);
+    setSaved(draft.trim().length > 0);
+    setDraft('');
+    setEditing(false);
+    showToast(draft.trim() ? 'Key saved — photo detection is on' : 'Key removed');
+  };
+
+  return (
+    <View style={s.row}>
+      <View style={s.rowHead}>
+        <View style={{ flex: 1 }}>
+          <Text style={s.rowTitle}>Photo detection</Text>
+          <Text style={s.rowSub}>
+            {saved ? 'On — key stored on this device' : 'Needs your Anthropic API key'}
+          </Text>
+        </View>
+        <Seg
+          options={[saved ? 'Change' : 'Add', 'Hide']}
+          selected={editing ? 0 : 1}
+          onSelect={(i) => setEditing(i === 0)}
+        />
+      </View>
+      {editing && (
+        <View style={{ marginTop: 12, gap: 10 }}>
+          <TextInput
+            style={visionStyles.input}
+            value={draft}
+            onChangeText={setDraft}
+            placeholder="sk-ant-..."
+            placeholderTextColor={C.faint}
+            autoCapitalize="none"
+            autoCorrect={false}
+            secureTextEntry
+          />
+          <View style={{ flexDirection: 'row', gap: 10 }}>
+            <Pressable onPress={save} style={visionStyles.saveBtn} hitSlop={6}>
+              <Text style={{ fontFamily: F.heading, fontSize: 14, color: C.onAccent }}>
+                {draft.trim() ? 'Save key' : saved ? 'Remove key' : 'Save'}
+              </Text>
+            </Pressable>
+          </View>
+          <Text style={[T.small, { fontSize: 12 }]}>
+            Get a key at console.anthropic.com. Each photo costs well under a cent.
+            The key never leaves this phone except to call the AI directly.
+          </Text>
+        </View>
+      )}
+    </View>
+  );
+}
+
+const visionStyles = StyleSheet.create({
+  input: {
+    fontFamily: F.body, fontSize: 15, color: C.text,
+    borderWidth: 1, borderColor: C.divider, borderRadius: 10,
+    paddingVertical: 10, paddingHorizontal: 12, backgroundColor: C.surface,
+  },
+  saveBtn: {
+    backgroundColor: C.accent, borderRadius: 10,
+    paddingVertical: 9, paddingHorizontal: 16, alignSelf: 'flex-start',
+  },
+});
 
 /// Step-aware goal: motion-sensor steps add to the daily target.
 function StepSettings() {

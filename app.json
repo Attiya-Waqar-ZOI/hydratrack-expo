@@ -15,7 +15,9 @@
     "ios": {
       "icon": "./assets/expo.icon",
       "infoPlist": {
-        "NSMotionUsageDescription": "HydraTrack reads your step count to raise your daily water goal on active days."
+        "NSMotionUsageDescription": "HydraTrack reads your step count to raise your daily water goal on active days.",
+        "NSCameraUsageDescription": "HydraTrack uses the camera to identify a drink and its amount from a photo.",
+        "NSPhotoLibraryUsageDescription": "HydraTrack lets you pick a drink photo so it can identify the drink and amount."
       }
     },
     "android": {
