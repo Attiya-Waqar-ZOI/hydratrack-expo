@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "HydraTrack",
-    "slug": "hydratrack-expo",
+    "slug": "hydra-track",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -46,6 +46,19 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "870b0b71-6540-467d-b627-ce5f50ce0f29"
+      }
+    },
+    "owner": "attiyazois-team",
+    "runtimeVersion": {
+      "policy": "sdkVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/870b0b71-6540-467d-b627-ce5f50ce0f29"
     }
   }
 }
