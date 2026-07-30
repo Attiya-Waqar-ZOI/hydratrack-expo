@@ -70,9 +70,11 @@ function toGuess(raw: RawGuess): DrinkGuess {
 }
 
 export async function detectDrink(base64Jpeg: string, apiKey: string): Promise<DrinkGuess> {
-  return apiKey.startsWith('AIza')
-    ? detectWithGemini(base64Jpeg, apiKey)
-    : detectWithClaude(base64Jpeg, apiKey);
+  // Anthropic keys are always sk-ant-…; Google issues several formats
+  // (AIza…, newer AQ.…), so everything else routes to Gemini.
+  return apiKey.startsWith('sk-ant')
+    ? detectWithClaude(base64Jpeg, apiKey)
+    : detectWithGemini(base64Jpeg, apiKey);
 }
 
 async function detectWithClaude(base64Jpeg: string, apiKey: string): Promise<DrinkGuess> {
