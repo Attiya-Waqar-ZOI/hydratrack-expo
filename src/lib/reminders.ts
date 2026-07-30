@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import Constants, { ExecutionEnvironment } from 'expo-constants';
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 
@@ -31,12 +32,18 @@ const NATIVE = Platform.OS !== 'web';
 const CATEGORY = 'hydration-reminder';
 export const ACTION_LOG_INTAKE = 'log-intake';
 
+// Custom sound files only exist in a real native build; Expo Go can only
+// play the system default. The water-drop file is bundled via the
+// expo-notifications plugin, ready for when a build happens.
+const IN_EXPO_GO = Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
+const SOUND = IN_EXPO_GO ? 'default' : 'water-drop.wav';
+
 if (NATIVE) {
   Notifications.setNotificationHandler({
     handleNotification: async () => ({
       shouldShowBanner: true,
       shouldShowList: true,
-      shouldPlaySound: false,
+      shouldPlaySound: true,
       shouldSetBadge: false,
     }),
   });
@@ -104,6 +111,7 @@ export async function notifyGoalRaised(goalMl: number, steps: number, useOz: boo
       title: '🚶 Goal raised',
       body: `You’ve walked ${steps.toLocaleString()} steps — today’s goal is now ${fmtVol(goalMl, useOz)}.`,
       categoryIdentifier: CATEGORY,
+      sound: SOUND,
     },
     trigger: null,
   });
@@ -125,6 +133,7 @@ export async function resyncReminders(
     await Notifications.setNotificationChannelAsync('hydration', {
       name: 'Hydration reminders',
       importance: Notifications.AndroidImportance.DEFAULT,
+      ...(IN_EXPO_GO ? {} : { sound: 'water-drop.wav' }),
     });
   }
 
@@ -145,7 +154,7 @@ export async function resyncReminders(
 
   const scheduleAt = async (d: Date, title: string, body: string) => {
     await Notifications.scheduleNotificationAsync({
-      content: { title, body, categoryIdentifier: CATEGORY },
+      content: { title, body, categoryIdentifier: CATEGORY, sound: SOUND },
       trigger: {
         type: Notifications.SchedulableTriggerInputTypes.DATE,
         date: d,

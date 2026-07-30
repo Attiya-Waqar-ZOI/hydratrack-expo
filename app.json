@@ -41,7 +41,13 @@
           "imageWidth": 76
         }
       ],
-      "expo-sqlite"
+      "expo-sqlite",
+      [
+        "expo-notifications",
+        {
+          "sounds": ["./assets/sounds/water-drop.wav"]
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,
