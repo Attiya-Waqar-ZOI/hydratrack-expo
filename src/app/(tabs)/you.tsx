@@ -176,7 +176,7 @@ function VisionSettings() {
             style={visionStyles.input}
             value={draft}
             onChangeText={setDraft}
-            placeholder="sk-ant-..."
+            placeholder="sk-ant-... or AIza..."
             placeholderTextColor={C.faint}
             autoCapitalize="none"
             autoCorrect={false}
@@ -190,8 +190,9 @@ function VisionSettings() {
             </Pressable>
           </View>
           <Text style={[T.small, { fontSize: 12 }]}>
-            Get a key at console.anthropic.com. Each photo costs well under a cent.
-            The key never leaves this phone except to call the AI directly.
+            Works with an Anthropic key (console.anthropic.com, under a cent per
+            photo) or a free Google Gemini key (aistudio.google.com, no card
+            needed). The key never leaves this phone except to call the AI directly.
           </Text>
         </View>
       )}

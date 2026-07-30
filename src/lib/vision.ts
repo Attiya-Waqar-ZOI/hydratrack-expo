@@ -2,10 +2,11 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { BEVERAGES, Beverage, beverageById } from './engines';
 
-/// Photo drink detection via the Anthropic Messages API (Claude Haiku 4.5,
-/// the cheapest vision-capable model). The API key is entered by the user
-/// in the You tab and lives only in this device's storage — never in the
-/// bundle, since the app is shared publicly through EAS Update.
+/// Photo drink detection. Two providers, picked by the pasted key's shape:
+/// - Anthropic (sk-ant-…): Claude Haiku 4.5, cheapest Claude vision model
+/// - Google Gemini (AIza…): free-tier option for testing, no card needed
+/// The key is entered in the You tab and lives only in this device's
+/// storage — never in the bundle, since the app is shared via EAS Update.
 
 const KEY_STORAGE = 'anthropicApiKey';
 
@@ -56,7 +57,25 @@ const PROMPT = `Identify the drink in this photo for a water-tracking app.
 - amount_ml: estimate the drink volume from the container. Typical sizes: espresso cup 60, glass 250, mug 350, can 330, small bottle 500, large bottle 1000. If the container is partly empty, estimate the liquid actually visible.
 - confidence: how sure you are overall.`;
 
+type RawGuess = {
+  drink_type: string; label: string; amount_ml: number; confidence: DrinkGuess['confidence'];
+};
+
+function toGuess(raw: RawGuess): DrinkGuess {
+  const beverage = raw.drink_type === 'other'
+    ? beverageById('water')
+    : beverageById(raw.drink_type);
+  const amountMl = Math.min(1000, Math.max(50, Math.round((raw.amount_ml || 250) / 5) * 5));
+  return { beverage, label: raw.label || beverage.name, amountMl, confidence: raw.confidence };
+}
+
 export async function detectDrink(base64Jpeg: string, apiKey: string): Promise<DrinkGuess> {
+  return apiKey.startsWith('AIza')
+    ? detectWithGemini(base64Jpeg, apiKey)
+    : detectWithClaude(base64Jpeg, apiKey);
+}
+
+async function detectWithClaude(base64Jpeg: string, apiKey: string): Promise<DrinkGuess> {
   const res = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: {
@@ -90,14 +109,50 @@ export async function detectDrink(base64Jpeg: string, apiKey: string): Promise<D
   )?.text;
   if (!text) throw new Error('empty');
 
-  const raw = JSON.parse(text) as {
-    drink_type: string; label: string; amount_ml: number; confidence: DrinkGuess['confidence'];
-  };
+  return toGuess(JSON.parse(text) as RawGuess);
+}
 
-  const beverage = raw.drink_type === 'other'
-    ? beverageById('water')
-    : beverageById(raw.drink_type);
-  const amountMl = Math.min(1000, Math.max(50, Math.round((raw.amount_ml || 250) / 5) * 5));
+// Gemini's responseSchema uses OpenAPI-style uppercase types.
+const GEMINI_SCHEMA = {
+  type: 'OBJECT',
+  properties: {
+    drink_type: { type: 'STRING', enum: [...TYPE_IDS, 'other'] },
+    label: { type: 'STRING' },
+    amount_ml: { type: 'INTEGER' },
+    confidence: { type: 'STRING', enum: ['low', 'medium', 'high'] },
+  },
+  required: ['drink_type', 'label', 'amount_ml', 'confidence'],
+};
 
-  return { beverage, label: raw.label || beverage.name, amountMl, confidence: raw.confidence };
+async function detectWithGemini(base64Jpeg: string, apiKey: string): Promise<DrinkGuess> {
+  const res = await fetch(
+    'https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent',
+    {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'x-goog-api-key': apiKey,
+      },
+      body: JSON.stringify({
+        contents: [{
+          parts: [
+            { inline_data: { mime_type: 'image/jpeg', data: base64Jpeg } },
+            { text: PROMPT },
+          ],
+        }],
+        generationConfig: {
+          responseMimeType: 'application/json',
+          responseSchema: GEMINI_SCHEMA,
+        },
+      }),
+    },
+  );
+
+  if (res.status === 400 || res.status === 401 || res.status === 403) throw new Error('key');
+  if (!res.ok) throw new Error(`api ${res.status}`);
+
+  const data = await res.json();
+  const text: string | undefined = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+  if (!text) throw new Error('empty');
+  return toGuess(JSON.parse(text) as RawGuess);
 }
