@@ -18,7 +18,8 @@
         "NSMotionUsageDescription": "HydraTrack reads your step count to raise your daily water goal on active days.",
         "NSCameraUsageDescription": "HydraTrack uses the camera to identify a drink and its amount from a photo.",
         "NSPhotoLibraryUsageDescription": "HydraTrack lets you pick a drink photo so it can identify the drink and amount."
-      }
+      },
+      "bundleIdentifier": "com.tayyib-hassan.hydra-track"
     },
     "android": {
       "adaptiveIcon": {
@@ -47,7 +48,9 @@
       [
         "expo-notifications",
         {
-          "sounds": ["./assets/sounds/water-drop.wav"]
+          "sounds": [
+            "./assets/sounds/water_drop.wav"
+          ]
         }
       ]
     ],

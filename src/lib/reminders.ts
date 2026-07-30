@@ -34,9 +34,26 @@ export const ACTION_LOG_INTAKE = 'log-intake';
 
 // Custom sound files only exist in a real native build; Expo Go can only
 // play the system default. The water-drop file is bundled via the
-// expo-notifications plugin, ready for when a build happens.
+// expo-notifications plugin; the name must be underscore-only because it
+// becomes an Android res/raw resource name.
 const IN_EXPO_GO = Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
-const SOUND = IN_EXPO_GO ? 'default' : 'water-drop.wav';
+const SOUND = IN_EXPO_GO ? 'default' : 'water_drop.wav';
+
+// Android channel settings (sound included) are frozen at creation, so a
+// sound fix only takes effect under a fresh channel id. v1 shipped with a
+// hyphenated sound filename that could never resolve, leaving the channel
+// silent forever; v2 recreates it with the fixed resource name.
+const CHANNEL_ID = 'hydration-v2';
+
+async function ensureAndroidChannel() {
+  if (Platform.OS !== 'android') return;
+  await Notifications.deleteNotificationChannelAsync('hydration').catch(() => {});
+  await Notifications.setNotificationChannelAsync(CHANNEL_ID, {
+    name: 'Hydration reminders',
+    importance: Notifications.AndroidImportance.DEFAULT,
+    ...(IN_EXPO_GO ? {} : { sound: SOUND }),
+  });
+}
 
 if (NATIVE) {
   Notifications.setNotificationHandler({
@@ -106,6 +123,7 @@ export async function notifyGoalRaised(goalMl: number, steps: number, useOz: boo
   if (!NATIVE) return;
   const perm = await Notifications.getPermissionsAsync();
   if (!perm.granted) return;
+  await ensureAndroidChannel();
   await Notifications.scheduleNotificationAsync({
     content: {
       title: '🚶 Goal raised',
@@ -113,7 +131,8 @@ export async function notifyGoalRaised(goalMl: number, steps: number, useOz: boo
       categoryIdentifier: CATEGORY,
       sound: SOUND,
     },
-    trigger: null,
+    // trigger: null skips the channel on Android, and with it the sound.
+    trigger: Platform.OS === 'android' ? { channelId: CHANNEL_ID } : null,
   });
 }
 
@@ -129,13 +148,7 @@ export async function resyncReminders(
   const perm = await Notifications.requestPermissionsAsync();
   if (!perm.granted) return { scheduled: 0, denied: true };
 
-  if (Platform.OS === 'android') {
-    await Notifications.setNotificationChannelAsync('hydration', {
-      name: 'Hydration reminders',
-      importance: Notifications.AndroidImportance.DEFAULT,
-      ...(IN_EXPO_GO ? {} : { sound: 'water-drop.wav' }),
-    });
-  }
+  await ensureAndroidChannel();
 
   // The "Add intake" button on every reminder; tapping it (or the
   // notification itself) opens the quick-log dialog in the app.
@@ -158,7 +171,7 @@ export async function resyncReminders(
       trigger: {
         type: Notifications.SchedulableTriggerInputTypes.DATE,
         date: d,
-        channelId: 'hydration',
+        channelId: CHANNEL_ID,
       },
     });
     scheduled++;
