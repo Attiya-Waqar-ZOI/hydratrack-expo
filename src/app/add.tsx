@@ -83,9 +83,12 @@ export default function AddDrink() {
         + `${guess.confidence === 'low' ? ' (not sure — please check)' : ''}. Adjust if needed.`,
       );
     } catch (e) {
-      const msg = e instanceof Error && e.message === 'key'
-        ? 'API key rejected — check it in the You tab'
-        : 'Could not identify the drink — try again or pick manually';
+      const raw = e instanceof Error ? e.message : String(e);
+      const msg = raw === 'empty' || raw === 'refused'
+        ? 'Could not identify the drink — try again or pick manually'
+        : `Scan failed — ${raw}`;
+      // Keep it on screen (toasts vanish too fast to read an API error).
+      setGuessNote(msg);
       showToast(msg);
     } finally {
       setScanning(false);

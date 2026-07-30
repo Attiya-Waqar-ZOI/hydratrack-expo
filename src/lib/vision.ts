@@ -101,8 +101,7 @@ async function detectWithClaude(base64Jpeg: string, apiKey: string): Promise<Dri
     }),
   });
 
-  if (res.status === 401) throw new Error('key');
-  if (!res.ok) throw new Error(`api ${res.status}`);
+  if (!res.ok) throw new Error(await apiError('Claude', res));
 
   const data = await res.json();
   if (data.stop_reason === 'refusal') throw new Error('refused');
@@ -150,11 +149,21 @@ async function detectWithGemini(base64Jpeg: string, apiKey: string): Promise<Dri
     },
   );
 
-  if (res.status === 400 || res.status === 401 || res.status === 403) throw new Error('key');
-  if (!res.ok) throw new Error(`api ${res.status}`);
+  if (!res.ok) throw new Error(await apiError('Gemini', res));
 
   const data = await res.json();
   const text: string | undefined = data?.candidates?.[0]?.content?.parts?.[0]?.text;
   if (!text) throw new Error('empty');
   return toGuess(JSON.parse(text) as RawGuess);
+}
+
+// Build a human-readable error carrying the provider's own message, so the
+// add sheet can show users exactly why a scan failed (key, quota, model…).
+async function apiError(provider: string, res: Response): Promise<string> {
+  let detail = '';
+  try {
+    const body = await res.json();
+    detail = body?.error?.message ?? '';
+  } catch { /* non-JSON body; status alone will do */ }
+  return `${provider} ${res.status}${detail ? `: ${detail.slice(0, 160)}` : ''}`;
 }
