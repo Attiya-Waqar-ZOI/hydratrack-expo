@@ -146,10 +146,15 @@ export default function Home() {
           <Text style={[s.section, { marginBottom: 6 }]}>Today&apos;s conditions</Text>
           <Text style={[T.body, { fontSize: 14.5, lineHeight: 21 }]}>{weatherLine}</Text>
           {app.stepsToday != null && (
-            <Text style={[T.body, { fontSize: 14.5, lineHeight: 21, marginTop: 4 }]}>
-              🚶 {app.stepsToday.toLocaleString()} steps today
-              {app.stepBoost > 0 ? ` — goal raised by ${app.stepBoost} ml.` : '.'}
-            </Text>
+            <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 7, marginTop: 8 }}>
+              <Text style={{ fontSize: 18 }}>🚶</Text>
+              <Text style={{ fontFamily: F.heading, fontSize: 26, letterSpacing: -0.6, color: C.text }}>
+                {app.stepsToday.toLocaleString()}
+              </Text>
+              <Text style={[T.body, { fontSize: 14.5 }]}>
+                steps today{app.stepBoost > 0 ? ` · goal +${app.stepBoost} ml` : ''}
+              </Text>
+            </View>
           )}
           {!ctx?.place && !app.weatherAuto && (
             <Pressable onPress={enableWeather} style={{ marginTop: 8 }} hitSlop={6}>
