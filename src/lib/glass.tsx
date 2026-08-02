@@ -45,7 +45,8 @@ function Bubble({ cx, delay, duration, scale }: {
       style={{
         position: 'absolute', left: cx, bottom: 10,
         width: 4 * scale, height: 4 * scale, borderRadius: 3 * scale,
-        backgroundColor: C.accent100,
+        // Neutral white so bubbles read inside any liquid color
+        backgroundColor: 'rgba(255,255,255,0.85)',
         opacity: v.interpolate({ inputRange: [0, 0.25, 1], outputRange: [0, 0.9, 0] }),
         transform: [{ translateY: v.interpolate({ inputRange: [0, 1], outputRange: [0, -46 * scale] }) }],
       }}
@@ -55,7 +56,7 @@ function Bubble({ cx, delay, duration, scale }: {
 
 export function GoalGlass({
   ml, fill, width = 72, ground = C.bg, startEmpty = false, fillMs = 1300,
-  waterColor = C.accent300, waterDeep = C.accent500,
+  waterColor = C.accent300,
 }: {
   ml?: number;      // 1000..6000 → design's level mapping
   fill?: number;    // 0..1 direct fill; above 1 the glass overflows
@@ -63,8 +64,7 @@ export function GoalGlass({
   ground?: string;  // color of the surface the glass sits on
   startEmpty?: boolean; // begin drained and pour in on mount
   fillMs?: number;      // duration of that first pour
-  waterColor?: string;  // main wave — tinted by the day's drink mix
-  waterDeep?: string;   // secondary wave / spills
+  waterColor?: string;  // the liquid — one solid, uniform color (last drink)
 }) {
   const scale = width / VW;
   const height = VH * scale;
@@ -140,6 +140,8 @@ export function GoalGlass({
             <Path d={wavePath(waveW, waveH / 3, waveH / 2, tallH)} fill={waterColor} />
           </Svg>
         </Animated.View>
+        {/* Second wave in the SAME color: its drifting crest keeps the
+            surface alive while the liquid body stays one uniform tone. */}
         <Animated.View
           style={{
             position: 'absolute', top: -waveH / 2 + 3 * scale,
@@ -147,7 +149,7 @@ export function GoalGlass({
           }}
         >
           <Svg width={waveW * 2} height={tallH}>
-            <Path d={wavePath(waveW, waveH / 3, waveH / 2, tallH)} fill={waterDeep} opacity={0.4} />
+            <Path d={wavePath(waveW, waveH / 3, waveH / 2, tallH)} fill={waterColor} />
           </Svg>
         </Animated.View>
       </Animated.View>
@@ -179,8 +181,8 @@ export function GoalGlass({
       {/* Overflow: drawn above the mask so it lives outside the glass */}
       {over && (
         <>
-          <SpillStream left={7.4 * scale} delay={0} scale={scale} color={waterDeep} />
-          <SpillStream left={49.4 * scale} delay={750} scale={scale} color={waterDeep} />
+          <SpillStream left={7.4 * scale} delay={0} scale={scale} color={waterColor} />
+          <SpillStream left={49.4 * scale} delay={750} scale={scale} color={waterColor} />
           <Puddle scale={scale} width={width} color={waterColor} />
         </>
       )}

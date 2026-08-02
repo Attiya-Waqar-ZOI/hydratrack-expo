@@ -148,16 +148,16 @@ export interface Beverage {
 
 export const BEVERAGES: Beverage[] = [
   { id: 'water', name: 'Water', factor: 1.0, caffeinePer100: 0, emoji: '💧', color: '#99e0ff' },
-  { id: 'sparkling', name: 'Sparkling water', factor: 1.0, caffeinePer100: 0, emoji: '🫧', color: '#b5e6f7' },
+  { id: 'sparkling', name: 'Sparkling water', factor: 1.0, caffeinePer100: 0, emoji: '🫧', color: '#debce3' },
   { id: 'herbal', name: 'Herbal tea', factor: 1.0, caffeinePer100: 0, emoji: '🌿', color: '#bfdcae' },
   { id: 'coconut', name: 'Coconut water', factor: 1.1, caffeinePer100: 0, emoji: '🥥', color: '#e9e4d2' },
   { id: 'sports', name: 'Sports drink', factor: 1.0, caffeinePer100: 0, emoji: '🏃', color: '#aee3e0' },
-  { id: 'milk', name: 'Milk', factor: 0.9, caffeinePer100: 0, emoji: '🥛', color: '#f2ecdd' },
-  { id: 'tea', name: 'Tea', factor: 0.9, caffeinePer100: 20, emoji: '🍵', color: '#dcb27a' },
+  { id: 'milk', name: 'Milk', factor: 0.9, caffeinePer100: 0, emoji: '🥛', color: '#fcfbf7' },
+  { id: 'tea', name: 'Tea', factor: 0.9, caffeinePer100: 20, emoji: '🍵', color: '#00ffbb' },
   { id: 'soup', name: 'Soup', factor: 0.9, caffeinePer100: 0, emoji: '🍜', color: '#e9c98a' },
-  { id: 'juice', name: 'Juice', factor: 0.85, caffeinePer100: 0, emoji: '🧃', color: '#ffc266' },
+  { id: 'juice', name: 'Juice', factor: 0.85, caffeinePer100: 0, emoji: '🧃', color: '#fa9f16' },
   { id: 'smoothie', name: 'Smoothie', factor: 0.85, caffeinePer100: 0, emoji: '🍓', color: '#f7a8b8' },
-  { id: 'coffee', name: 'Coffee', factor: 0.8, caffeinePer100: 40, emoji: '☕', color: '#b98a68' },
+  { id: 'coffee', name: 'Coffee', factor: 0.8, caffeinePer100: 40, emoji: '☕', color: '#593e2a' },
   { id: 'soda', name: 'Soda', factor: 0.7, caffeinePer100: 10, emoji: '🥤', color: '#cf9d7c' },
   { id: 'energy', name: 'Energy drink', factor: 0.7, caffeinePer100: 32, emoji: '⚡', color: '#ffd966' },
   { id: 'alcohol', name: 'Beer or wine', factor: -0.6, caffeinePer100: 0, emoji: '🍺', color: '#e6c25e' },
@@ -219,29 +219,6 @@ export function fmtSigned(ml: number, useOz: boolean): string {
   return ml < 0 ? fmtVol(ml, useOz) : `+${fmtVol(ml, useOz)}`;
 }
 
-/// Weighted blend of the day's drink colors (hydration-positive logs only);
-/// null when the glass should stay plain water blue.
-export function mixColor(logs: { beverageId: string; amountMl: number }[]): string | null {
-  let r = 0, g = 0, b = 0, w = 0;
-  for (const l of logs) {
-    if (l.amountMl <= 0) continue;
-    const hex = beverageById(l.beverageId).color;
-    r += parseInt(hex.slice(1, 3), 16) * l.amountMl;
-    g += parseInt(hex.slice(3, 5), 16) * l.amountMl;
-    b += parseInt(hex.slice(5, 7), 16) * l.amountMl;
-    w += l.amountMl;
-  }
-  if (w === 0) return null;
-  const to2 = (v: number) => Math.round(v / w).toString(16).padStart(2, '0');
-  return `#${to2(r)}${to2(g)}${to2(b)}`;
-}
-
-/// Darken a hex color by a factor (0..1) — used for the glass's deep wave.
-export function shade(hex: string, f: number): string {
-  const ch = (i: number) =>
-    Math.round(parseInt(hex.slice(i, i + 2), 16) * (1 - f)).toString(16).padStart(2, '0');
-  return `#${ch(1)}${ch(3)}${ch(5)}`;
-}
 
 export function todayKey(d = new Date()): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;

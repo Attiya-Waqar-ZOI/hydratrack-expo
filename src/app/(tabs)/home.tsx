@@ -8,7 +8,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useApp } from '@/lib/app-state';
 import { AppHeader, LogRow } from '@/lib/chrome';
-import { beverageById, fmtSigned, fmtVol, shade } from '@/lib/engines';
+import { beverageById, fmtSigned, fmtVol } from '@/lib/engines';
 import { GoalGlass } from '@/lib/glass';
 import { showToast } from '@/lib/toast';
 import { C, F, R, T } from '@/lib/theme';
@@ -95,7 +95,6 @@ export default function Home() {
             <GoalGlass
               fill={progress} width={104} ground={C.surface}
               waterColor={mix ?? C.accent300}
-              waterDeep={mix ? shade(mix, 0.28) : C.accent500}
             />
           </View>
         </View>

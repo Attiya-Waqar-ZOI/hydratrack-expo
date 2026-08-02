@@ -2,7 +2,7 @@
 // type-in readout, ruler and size chips; the categorized emoji drink grid
 // (favorites / popular / built-in groups / your drinks); and the exact-time
 // picker. Kept together so both screens stay visually identical.
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { DrinkStat } from './db';
@@ -27,6 +27,7 @@ export function AmountField({ ml, onChange, useOz, usualMl }: {
   usualMl?: number | null; // the drink's most-logged size, shown as a chip
 }) {
   const [draft, setDraft] = useState<string | null>(null); // non-null while typing
+  const inputRef = useRef<TextInput>(null);
 
   const commit = () => {
     if (draft != null) {
@@ -46,9 +47,11 @@ export function AmountField({ ml, onChange, useOz, usualMl }: {
     <View>
       <View style={s.amtRow}>
         <Text style={s.section}>How much</Text>
-        {/* Punch the number in directly, or drag the ruler below */}
-        <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 5 }}>
+        {/* Punch the number in directly, or drag the ruler below. Framed as
+            an input box with a pencil so it clearly invites typing. */}
+        <Pressable style={s.readoutBox} onPress={() => inputRef.current?.focus()}>
           <TextInput
+            ref={inputRef}
             style={s.readoutInput}
             value={draft ?? String(ml)}
             onFocus={() => setDraft(String(ml))}
@@ -60,7 +63,8 @@ export function AmountField({ ml, onChange, useOz, usualMl }: {
             maxLength={4}
           />
           <Text style={s.readoutUnit}>ml{useOz ? ` · ${fmtVol(ml, true)}` : ''}</Text>
-        </View>
+          <Text style={{ fontSize: 13, marginLeft: 2 }}>✏️</Text>
+        </Pressable>
       </View>
       <View style={{ marginTop: 4 }}>
         <Ruler
@@ -350,10 +354,15 @@ export function TimeField({ sel, onChange }: {
 const s = StyleSheet.create({
   section: { fontFamily: F.heading, fontSize: 19, color: C.text },
   amtRow: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: 12 },
+  readoutBox: {
+    flexDirection: 'row', alignItems: 'baseline', gap: 5,
+    borderWidth: 1, borderColor: C.neutral400, borderRadius: 12,
+    backgroundColor: C.surface,
+    paddingVertical: 4, paddingHorizontal: 12,
+  },
   readoutInput: {
-    fontFamily: F.heading, fontSize: 30, letterSpacing: -0.7, color: C.text,
-    minWidth: 78, textAlign: 'right', paddingVertical: 0,
-    borderBottomWidth: 1, borderBottomColor: C.neutral400,
+    fontFamily: F.heading, fontSize: 28, letterSpacing: -0.7, color: C.text,
+    minWidth: 64, textAlign: 'right', paddingVertical: 0,
   },
   readoutUnit: { fontFamily: F.body, fontSize: 14, color: C.muted },
   chip: {
