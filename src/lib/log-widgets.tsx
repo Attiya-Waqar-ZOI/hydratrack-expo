@@ -18,8 +18,10 @@ import type { FavoriteRow } from './types';
 const DateTimePicker = Platform.OS === 'web' ? null : require('@react-native-community/datetimepicker').default;
 
 // ── Amount ──────────────────────────────────────────────────────────
-// step 1: the tape slides granularly, any ml value is reachable by drag
-const AMT = { min: 50, max: 1000, px: 0.24, step: 1 };
+// step 1: the tape slides granularly, any ml value is reachable by drag.
+// px 0.6 (was 0.24) slows the drag: ~2.5x more finger travel per ml, so
+// small adjustments land precisely instead of flying past.
+const AMT = { min: 50, max: 1000, px: 0.6, step: 1 };
 
 export function AmountField({ ml, onChange, useOz, usualMl }: {
   ml: number;
