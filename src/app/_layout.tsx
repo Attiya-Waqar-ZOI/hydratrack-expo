@@ -49,6 +49,10 @@ export default function RootLayout() {
           options={{ presentation: 'modal', headerShown: false }}
         />
         <Stack.Screen
+          name="edit-log"
+          options={{ presentation: 'modal', headerShown: false }}
+        />
+        <Stack.Screen
           name="quick-log"
           options={{
             presentation: 'transparentModal',

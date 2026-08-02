@@ -1,9 +1,12 @@
 // Central app state: profile, today's intake, environment context, actions.
 // A single context keeps v1 simple; screens re-render via the `version` tick.
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { AppState as RNAppState } from 'react-native';
 
-import { DayContextRow, LogRow, Profile, hydrateCustomBeverages, makeLog, store } from './db';
+import {
+  DayContextRow, FavoriteRow, LogRow, Profile, hydrateCustomBeverages, makeLog, store,
+} from './db';
 import { loadReminderPrefs, notifyGoalRaised, resyncReminders } from './reminders';
 import {
   announcedBoost, requestStepPermission, setAnnouncedBoost, setStepsEnabled,
@@ -24,7 +27,13 @@ interface AppState {
   version: number;
   saveProfile: (p: Profile) => void;
   addDrink: (volumeMl: number, beverage: Beverage, at?: Date) => string;
+  updateDrink: (id: string, volumeMl: number, beverage: Beverage, at: Date) => void;
   undo: (id: string) => void;
+  favorites: FavoriteRow[];
+  toggleFavorite: (beverageId: string, volumeMl: number) => boolean;
+  removeFavorite: (id: string) => void;
+  weatherAuto: boolean;
+  setWeatherAuto: (on: boolean) => Promise<boolean>;
   setManualTemp: (tempC: number | null) => void;
   detectEnvironment: () => Promise<DayContextRow | null>;
   saveNote: (note: string) => void;
@@ -44,6 +53,11 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   const [manualTemp, setManualTempState] = useState<number | null>(null);
   const [stepsToday, setStepsToday] = useState<number | null>(null);
   const [stepBoost, setStepBoost] = useState(0);
+  const [weatherAuto, setWeatherAutoState] = useState(false);
+  const detectedDay = useRef<string | null>(null);
+  // Always points at the latest render's detectEnvironment, so the
+  // mount-once foreground listener never runs a stale day's version.
+  const detectRef = useRef<() => Promise<DayContextRow | null>>(async () => null);
   const bump = useCallback(() => setVersion((v) => v + 1), []);
 
   // Re-read the motion sensor whenever the app becomes active; the boost
@@ -72,6 +86,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     const tk = todayKey();
     const todayLogs = store.logsForDay(tk);
     const todayTotal = todayLogs.reduce((s, l) => s + l.amountMl, 0);
+    const favorites = store.favorites();
     const dayContext = store.getDayContext(tk);
     const env = envBoost(
       manualTemp ?? dayContext?.tempC ?? null,
@@ -80,9 +95,27 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     );
     const effectiveGoal = (profile?.dailyGoalMl ?? 0) + env.totalMl + stepBoost;
 
+    const detectEnvironment = async (): Promise<DayContextRow | null> => {
+      const geo = await detectGeoWeather();
+      if (!geo) return null;
+      const existing = store.getDayContext(tk);
+      const row: DayContextRow = {
+        dayKey: tk,
+        place: geo.place ?? existing?.place ?? null,
+        tempC: geo.tempC ?? existing?.tempC ?? null,
+        humidity: geo.humidity ?? existing?.humidity ?? null,
+        elevationM: geo.elevationM ?? existing?.elevationM ?? null,
+        note: existing?.note ?? null,
+      };
+      store.saveDayContext(row);
+      bump();
+      return row;
+    };
+    detectRef.current = detectEnvironment;
+
     return {
       profile, todayLogs, todayTotal, effectiveGoal, env, dayContext, version,
-      stepsToday, stepBoost,
+      stepsToday, stepBoost, favorites, weatherAuto,
       setStepTracking: async (on: boolean) => {
         if (!on) {
           await setStepsEnabled(false);
@@ -102,7 +135,44 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
         const log = makeLog(volumeMl, beverage, at);
         store.addLog(log); bump(); return log.id;
       },
+      updateDrink: (id, volumeMl, beverage, at) => {
+        store.updateLog({
+          id, volumeMl,
+          amountMl: Math.round(volumeMl * beverage.factor),
+          beverageId: beverage.id,
+          loggedAt: at.getTime(),
+          dayKey: todayKey(at),
+        });
+        bump();
+      },
       undo: (id) => { store.deleteLog(id); bump(); },
+      // Returns whether the pair is a favorite AFTER the toggle.
+      toggleFavorite: (beverageId, volumeMl) => {
+        const hit = store.favorites().find(
+          (f) => f.beverageId === beverageId && f.volumeMl === volumeMl,
+        );
+        if (hit) store.deleteFavorite(hit.id);
+        else store.addFavorite({
+          id: `fav_${Date.now().toString(36)}`, beverageId, volumeMl,
+        });
+        bump();
+        return !hit;
+      },
+      removeFavorite: (id) => { store.deleteFavorite(id); bump(); },
+      // Remembered daily-weather setting: once on, the goal adjusts itself
+      // each day with no prompt (iOS keeps the location grant).
+      setWeatherAuto: async (on: boolean) => {
+        if (!on) {
+          await AsyncStorage.setItem('weatherAuto', '0');
+          setWeatherAutoState(false);
+          return true;
+        }
+        const row = await detectEnvironment();
+        if (row == null) return false; // permission denied or offline
+        await AsyncStorage.setItem('weatherAuto', '1');
+        setWeatherAutoState(true);
+        return true;
+      },
       setManualTemp: (t) => { setManualTempState(t); },
       saveNote: (note) => {
         const existing = store.getDayContext(tk);
@@ -113,22 +183,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
         });
         bump();
       },
-      detectEnvironment: async () => {
-        const geo = await detectGeoWeather();
-        if (!geo) return null;
-        const existing = store.getDayContext(tk);
-        const row: DayContextRow = {
-          dayKey: tk,
-          place: geo.place ?? existing?.place ?? null,
-          tempC: geo.tempC ?? existing?.tempC ?? null,
-          humidity: geo.humidity ?? existing?.humidity ?? null,
-          elevationM: geo.elevationM ?? existing?.elevationM ?? null,
-          note: existing?.note ?? null,
-        };
-        store.saveDayContext(row);
-        bump();
-        return row;
-      },
+      detectEnvironment,
       // Hydration factor derives from the user's reference serving:
       // "in servingMl of this drink, waterMl counts as water".
       addCustomBeverage: (name, servingMl, waterMl) => {
@@ -148,8 +203,31 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
         store.clearAll(); hydrateCustomBeverages(); setManualTempState(null); bump();
       },
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [version, manualTemp, bump, stepsToday, stepBoost, refreshSteps]);
+     
+  }, [version, manualTemp, bump, stepsToday, stepBoost, refreshSteps, weatherAuto]);
+
+  // Remembered weather setting: refresh today's context automatically on
+  // launch and whenever the app comes back to the foreground on a new day —
+  // the user should never have to tap "use my location" again.
+  useEffect(() => {
+    const autoDetect = async () => {
+      const on = (await AsyncStorage.getItem('weatherAuto')) === '1';
+      setWeatherAutoState(on);
+      if (!on) return;
+      const tk = todayKey();
+      if (detectedDay.current === tk) return;
+      const ctx = store.getDayContext(tk);
+      if (ctx?.tempC != null) { detectedDay.current = tk; return; }
+      detectedDay.current = tk; // even on failure, retry only on next activation
+      await detectRef.current().catch(() => null);
+    };
+    autoDetect();
+    const sub = RNAppState.addEventListener('change', (st) => {
+      if (st === 'active') autoDetect();
+    });
+    return () => sub.remove();
+     
+  }, []);
 
   // Announce a goal raise once per tier per day, as a notification.
   useEffect(() => {

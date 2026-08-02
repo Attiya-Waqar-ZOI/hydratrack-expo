@@ -77,22 +77,31 @@ export function recommendedGoalMl(
 // ── Environment boost (temperature + altitude + dry air) ──────────
 export interface EnvBoost { tempMl: number; altitudeMl: number; aridityMl: number; totalMl: number }
 
+// Tiers deliberately gentle: the profile's climate already bakes heat into
+// the base goal, so the live-weather boost is a nudge, not a second goal.
+// (Early tiers reached +1000 ml and pushed goals past 5 L — user feedback.)
 export function tempBoostMl(tempC: number | null): number {
   if (tempC == null) return 0;
-  if (tempC < 25) return 0;
-  if (tempC < 32) return 250;
-  if (tempC < 38) return 500;
-  return 750;
+  if (tempC < 27) return 0;
+  if (tempC < 33) return 150;
+  if (tempC < 38) return 300;
+  return 450;
 }
+
+// Whatever the conditions, weather never adds more than this.
+export const ENV_BOOST_CAP = 500;
 
 export function envBoost(
   tempC: number | null, humidityPct: number | null, elevationM: number | null,
 ): EnvBoost {
   const tempMl = tempBoostMl(tempC);
   let altitudeMl = 0;
-  if (elevationM != null) altitudeMl = elevationM >= 2500 ? 500 : elevationM >= 1500 ? 300 : 0;
-  const aridityMl = humidityPct != null && humidityPct < 30 && (tempC ?? 0) >= 20 ? 250 : 0;
-  return { tempMl, altitudeMl, aridityMl, totalMl: tempMl + altitudeMl + aridityMl };
+  if (elevationM != null) altitudeMl = elevationM >= 2500 ? 400 : elevationM >= 1500 ? 250 : 0;
+  const aridityMl = humidityPct != null && humidityPct < 30 && (tempC ?? 0) >= 20 ? 150 : 0;
+  return {
+    tempMl, altitudeMl, aridityMl,
+    totalMl: Math.min(ENV_BOOST_CAP, tempMl + altitudeMl + aridityMl),
+  };
 }
 
 // ── Hydration pace ─────────────────────────────────────────────────
@@ -129,26 +138,45 @@ export function catchUpPlan(remainingMl: number, nowMin: number, sleepMin: numbe
 }
 
 // ── Beverages ──────────────────────────────────────────────────────
-// `icon` is a MaterialCommunityIcons glyph name (rendered by the UI layer).
+// `emoji` is the tile/list icon; `color` tints the home glass when the
+// day's mix isn't plain water. Alcohol has a NEGATIVE factor: it costs
+// water (1000 ml beer ≈ −600 ml hydration), per user feedback.
 export interface Beverage {
-  id: string; name: string; factor: number; caffeinePer100: number; icon: string;
+  id: string; name: string; factor: number; caffeinePer100: number;
+  emoji: string; color: string;
 }
 
 export const BEVERAGES: Beverage[] = [
-  { id: 'water', name: 'Water', factor: 1.0, caffeinePer100: 0, icon: 'water-outline' },
-  { id: 'sparkling', name: 'Sparkling water', factor: 1.0, caffeinePer100: 0, icon: 'glass-flute' },
-  { id: 'herbal', name: 'Herbal tea', factor: 1.0, caffeinePer100: 0, icon: 'leaf' },
-  { id: 'coconut', name: 'Coconut water', factor: 1.1, caffeinePer100: 0, icon: 'palm-tree' },
-  { id: 'sports', name: 'Sports drink', factor: 1.0, caffeinePer100: 0, icon: 'bottle-soda-outline' },
-  { id: 'milk', name: 'Milk', factor: 0.9, caffeinePer100: 0, icon: 'cup-outline' },
-  { id: 'tea', name: 'Tea', factor: 0.9, caffeinePer100: 20, icon: 'tea-outline' },
-  { id: 'soup', name: 'Soup', factor: 0.9, caffeinePer100: 0, icon: 'bowl-mix-outline' },
-  { id: 'juice', name: 'Juice', factor: 0.85, caffeinePer100: 0, icon: 'fruit-citrus' },
-  { id: 'smoothie', name: 'Smoothie', factor: 0.85, caffeinePer100: 0, icon: 'blender-outline' },
-  { id: 'coffee', name: 'Coffee', factor: 0.8, caffeinePer100: 40, icon: 'coffee-outline' },
-  { id: 'soda', name: 'Soda', factor: 0.7, caffeinePer100: 10, icon: 'bottle-soda-classic-outline' },
-  { id: 'energy', name: 'Energy drink', factor: 0.7, caffeinePer100: 32, icon: 'lightning-bolt-outline' },
-  { id: 'alcohol', name: 'Beer or wine', factor: 0.5, caffeinePer100: 0, icon: 'glass-wine' },
+  { id: 'water', name: 'Water', factor: 1.0, caffeinePer100: 0, emoji: '💧', color: '#99e0ff' },
+  { id: 'sparkling', name: 'Sparkling water', factor: 1.0, caffeinePer100: 0, emoji: '🫧', color: '#b5e6f7' },
+  { id: 'herbal', name: 'Herbal tea', factor: 1.0, caffeinePer100: 0, emoji: '🌿', color: '#bfdcae' },
+  { id: 'coconut', name: 'Coconut water', factor: 1.1, caffeinePer100: 0, emoji: '🥥', color: '#e9e4d2' },
+  { id: 'sports', name: 'Sports drink', factor: 1.0, caffeinePer100: 0, emoji: '🏃', color: '#aee3e0' },
+  { id: 'milk', name: 'Milk', factor: 0.9, caffeinePer100: 0, emoji: '🥛', color: '#f2ecdd' },
+  { id: 'tea', name: 'Tea', factor: 0.9, caffeinePer100: 20, emoji: '🍵', color: '#dcb27a' },
+  { id: 'soup', name: 'Soup', factor: 0.9, caffeinePer100: 0, emoji: '🍜', color: '#e9c98a' },
+  { id: 'juice', name: 'Juice', factor: 0.85, caffeinePer100: 0, emoji: '🧃', color: '#ffc266' },
+  { id: 'smoothie', name: 'Smoothie', factor: 0.85, caffeinePer100: 0, emoji: '🍓', color: '#f7a8b8' },
+  { id: 'coffee', name: 'Coffee', factor: 0.8, caffeinePer100: 40, emoji: '☕', color: '#b98a68' },
+  { id: 'soda', name: 'Soda', factor: 0.7, caffeinePer100: 10, emoji: '🥤', color: '#cf9d7c' },
+  { id: 'energy', name: 'Energy drink', factor: 0.7, caffeinePer100: 32, emoji: '⚡', color: '#ffd966' },
+  { id: 'alcohol', name: 'Beer or wine', factor: -0.6, caffeinePer100: 0, emoji: '🍺', color: '#e6c25e' },
+];
+
+// Standard serving sizes shown as one-tap chips wherever an amount is set.
+export const SIZE_CHIPS = [250, 330, 500, 600, 1000];
+
+// Add-sheet categories, per the requested flow. `favorites` and `popular`
+// are filled at runtime; `custom` holds the user's own drinks.
+export interface BeverageCategory { key: string; label: string; ids: string[] }
+export const BEVERAGE_CATEGORIES: BeverageCategory[] = [
+  { key: 'water', label: 'Water', ids: ['water', 'sparkling', 'coconut'] },
+  { key: 'hot', label: 'Coffee & tea', ids: ['coffee', 'tea', 'herbal'] },
+  { key: 'juice', label: 'Juices', ids: ['juice', 'smoothie'] },
+  { key: 'soda', label: 'Soda & energy', ids: ['soda', 'energy'] },
+  { key: 'wellness', label: 'Sports & wellness', ids: ['sports', 'soup'] },
+  { key: 'milk', label: 'Milk', ids: ['milk'] },
+  { key: 'alcohol', label: 'Alcohol', ids: ['alcohol'] },
 ];
 
 // User-defined drinks, hydrated from storage at startup (db.ts) and after
@@ -180,9 +208,39 @@ export function recommendation(currentMl: number, goalMl: number, hour: number, 
 export const ML_PER_OZ = 29.5735;
 
 export function fmtVol(ml: number, useOz: boolean): string {
+  if (ml < 0) return `−${fmtVol(-ml, useOz)}`; // alcohol logs carry negative hydration
   if (useOz) return `${Math.round(ml / ML_PER_OZ)} oz`;
   if (ml >= 1000) return `${(ml / 1000).toFixed(1)} L`;
   return `${ml} ml`;
+}
+
+/// "+250 ml" / "−600 ml" — signed amounts for log rows.
+export function fmtSigned(ml: number, useOz: boolean): string {
+  return ml < 0 ? fmtVol(ml, useOz) : `+${fmtVol(ml, useOz)}`;
+}
+
+/// Weighted blend of the day's drink colors (hydration-positive logs only);
+/// null when the glass should stay plain water blue.
+export function mixColor(logs: { beverageId: string; amountMl: number }[]): string | null {
+  let r = 0, g = 0, b = 0, w = 0;
+  for (const l of logs) {
+    if (l.amountMl <= 0) continue;
+    const hex = beverageById(l.beverageId).color;
+    r += parseInt(hex.slice(1, 3), 16) * l.amountMl;
+    g += parseInt(hex.slice(3, 5), 16) * l.amountMl;
+    b += parseInt(hex.slice(5, 7), 16) * l.amountMl;
+    w += l.amountMl;
+  }
+  if (w === 0) return null;
+  const to2 = (v: number) => Math.round(v / w).toString(16).padStart(2, '0');
+  return `#${to2(r)}${to2(g)}${to2(b)}`;
+}
+
+/// Darken a hex color by a factor (0..1) — used for the glass's deep wave.
+export function shade(hex: string, f: number): string {
+  const ch = (i: number) =>
+    Math.round(parseInt(hex.slice(i, i + 2), 16) * (1 - f)).toString(16).padStart(2, '0');
+  return `#${ch(1)}${ch(3)}${ch(5)}`;
 }
 
 export function todayKey(d = new Date()): string {

@@ -23,17 +23,33 @@ export interface CustomBeverageRow {
   id: string; name: string; factor: number;
 }
 
+export interface FavoriteRow {
+  id: string; beverageId: string; volumeMl: number;
+}
+
+/// How often each (beverage, volume) pair was logged — feeds the Popular
+/// category and per-drink usual-size suggestions.
+export interface VolumeCount {
+  beverageId: string; volumeMl: number; n: number;
+}
+
 export interface Store {
   getProfile(): Profile | null;
   saveProfile(p: Profile): void;
   clearAll(): void;
   addLog(l: LogRow): void;
+  updateLog(l: LogRow): void;
+  getLog(id: string): LogRow | null;
   deleteLog(id: string): void;
   logsForDay(dayKey: string): LogRow[];
   totalsByDay(limitDays: number): { dayKey: string; totalMl: number }[];
+  volumeCounts(sinceMs: number): VolumeCount[];
   getDayContext(dayKey: string): DayContextRow | null;
   saveDayContext(c: DayContextRow): void;
   customBeverages(): CustomBeverageRow[];
   addCustomBeverage(b: CustomBeverageRow): void;
   deleteCustomBeverage(id: string): void;
+  favorites(): FavoriteRow[];
+  addFavorite(f: FavoriteRow): void;
+  deleteFavorite(id: string): void;
 }

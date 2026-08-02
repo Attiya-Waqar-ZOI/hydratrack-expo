@@ -3,7 +3,9 @@
 // so expo-sqlite never enters the web bundle.
 import * as SQLite from 'expo-sqlite';
 
-import type { CustomBeverageRow, DayContextRow, LogRow, Profile, Store } from './types';
+import type {
+  CustomBeverageRow, DayContextRow, FavoriteRow, LogRow, Profile, Store, VolumeCount,
+} from './types';
 
 export function createStore(): Store {
   const db = SQLite.openDatabaseSync('hydratrack.db');
@@ -27,6 +29,9 @@ export function createStore(): Store {
     CREATE TABLE IF NOT EXISTS custom_beverage (
       id TEXT PRIMARY KEY, name TEXT, factor REAL
     );
+    CREATE TABLE IF NOT EXISTS favorite_drink (
+      id TEXT PRIMARY KEY, beverageId TEXT, volumeMl INTEGER
+    );
   `);
   return {
     getProfile: () =>
@@ -42,12 +47,19 @@ export function createStore(): Store {
          p.dailyGoalMl, p.bmi],
       ),
     clearAll: () =>
-      db.execSync('DELETE FROM profile; DELETE FROM water_log; DELETE FROM day_context; DELETE FROM custom_beverage;'),
+      db.execSync('DELETE FROM profile; DELETE FROM water_log; DELETE FROM day_context; DELETE FROM custom_beverage; DELETE FROM favorite_drink;'),
     addLog: (l) =>
       db.runSync(
         'INSERT INTO water_log (id,amountMl,volumeMl,beverageId,loggedAt,dayKey) VALUES (?,?,?,?,?,?)',
         [l.id, l.amountMl, l.volumeMl, l.beverageId, l.loggedAt, l.dayKey],
       ),
+    updateLog: (l) =>
+      db.runSync(
+        'UPDATE water_log SET amountMl=?, volumeMl=?, beverageId=?, loggedAt=?, dayKey=? WHERE id=?',
+        [l.amountMl, l.volumeMl, l.beverageId, l.loggedAt, l.dayKey, l.id],
+      ),
+    getLog: (id) =>
+      db.getFirstSync<LogRow>('SELECT * FROM water_log WHERE id = ?', [id]) ?? null,
     deleteLog: (id) => db.runSync('DELETE FROM water_log WHERE id = ?', [id]),
     logsForDay: (dayKey) =>
       db.getAllSync<LogRow>(
@@ -56,6 +68,10 @@ export function createStore(): Store {
       db.getAllSync<{ dayKey: string; totalMl: number }>(
         `SELECT dayKey, SUM(amountMl) AS totalMl FROM water_log
          GROUP BY dayKey ORDER BY dayKey DESC LIMIT ?`, [limitDays]),
+    volumeCounts: (sinceMs) =>
+      db.getAllSync<VolumeCount>(
+        `SELECT beverageId, volumeMl, COUNT(*) AS n FROM water_log
+         WHERE loggedAt >= ? GROUP BY beverageId, volumeMl`, [sinceMs]),
     getDayContext: (dayKey) =>
       db.getFirstSync<DayContextRow>(
         'SELECT * FROM day_context WHERE dayKey = ?', [dayKey]) ?? null,
@@ -73,5 +89,14 @@ export function createStore(): Store {
       ),
     deleteCustomBeverage: (id) =>
       db.runSync('DELETE FROM custom_beverage WHERE id = ?', [id]),
+    favorites: () =>
+      db.getAllSync<FavoriteRow>('SELECT * FROM favorite_drink ORDER BY rowid ASC'),
+    addFavorite: (f) =>
+      db.runSync(
+        'INSERT OR REPLACE INTO favorite_drink (id,beverageId,volumeMl) VALUES (?,?,?)',
+        [f.id, f.beverageId, f.volumeMl],
+      ),
+    deleteFavorite: (id) =>
+      db.runSync('DELETE FROM favorite_drink WHERE id = ?', [id]),
   };
 }

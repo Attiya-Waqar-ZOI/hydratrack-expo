@@ -1,42 +1,35 @@
-// Log a drink — the design's sheet: amount ruler first, then the beverage
-// radio list (built-ins + the user's own drinks), bordered When chips, the
-// hydration line, and a full-width serif CTA. Users can define custom
-// drinks by stating how much water a reference serving counts as.
+// Log a drink — photo detection up top, then the requested flow: amount
+// (type it or slide it, with standard size chips), the categorized emoji
+// drink grid (favorites / popular / groups / your own), the moment it was
+// drunk (chips or an exact clock time, never in the future), and the CTA.
 import { router } from 'expo-router';
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   ActivityIndicator, Alert, Platform, Pressable, StyleSheet, Text, TextInput, View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useApp } from '@/lib/app-state';
-import { allBeverages, beverageById, fmtVol, todayKey } from '@/lib/engines';
-import { Ruler, RulerScrollView } from '@/lib/ruler';
+import { drinkStats } from '@/lib/db';
+import { beverageById, fmtVol } from '@/lib/engines';
+import { AmountField, DrinkPicker, TimeField, WhenSel, resolveWhen } from '@/lib/log-widgets';
+import { RulerScrollView } from '@/lib/ruler';
 import { showToast } from '@/lib/toast';
 import { C, F, btnPrimary } from '@/lib/theme';
 import { detectDrink, getApiKey } from '@/lib/vision';
-
-const AMT = { min: 50, max: 1000, px: 0.24, step: 50 };
-const PRESETS = [
-  { label: 'Half glass', ml: 125 },
-  { label: 'Glass', ml: 250 },
-  { label: 'Can', ml: 330 },
-  { label: 'Mug', ml: 350 },
-  { label: 'Bottle', ml: 500 },
-];
-const WHENS = [
-  { label: 'Now', h: 0 }, { label: '1h ago', h: 1 }, { label: '2h ago', h: 2 },
-  { label: '3h ago', h: 3 }, { label: '6h ago', h: 6 },
-];
 
 export default function AddDrink() {
   const app = useApp();
   const useOz = app.profile?.unit === 'oz';
   const [bevId, setBevId] = useState('water');
   const [ml, setMl] = useState(250);
-  const [hoursAgo, setHoursAgo] = useState(0);
+  const [when, setWhen] = useState<WhenSel>({ kind: 'now' });
   const [scanning, setScanning] = useState(false);
   const [guessNote, setGuessNote] = useState<string | null>(null);
+
+  // app.version dep: refreshed after every log so Popular stays honest.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const stats = useMemo(() => drinkStats(), [app.version]);
 
   const snap = async () => {
     if (scanning) return;
@@ -95,17 +88,21 @@ export default function AddDrink() {
     }
   };
 
-  const bevs = allBeverages();
   const bev = beverageById(bevId);
   const hydration = Math.round(ml * bev.factor);
+  const usualMl = stats.find((st) => st.beverageId === bevId)?.usualMl ?? null;
+  const isFav = app.favorites.some((f) => f.beverageId === bevId && f.volumeMl === ml);
+
+  const pick = (id: string, suggestedMl?: number) => {
+    setBevId(id);
+    if (suggestedMl) setMl(suggestedMl);
+  };
 
   const log = () => {
-    const at = hoursAgo > 0 ? new Date(Date.now() - hoursAgo * 3600_000) : undefined;
-    // A back-dated time can cross midnight; say so, or the log looks lost.
-    const backdated = at && todayKey(at) !== todayKey();
-    const id = app.addDrink(ml, bev, at);
+    const { date, yesterday } = resolveWhen(when);
+    const id = app.addDrink(ml, bev, when.kind === 'now' ? undefined : date);
     router.back();
-    showToast(`${fmtVol(ml, !!useOz)} ${bev.name} added${backdated ? ' to yesterday' : ''}`, {
+    showToast(`${fmtVol(ml, !!useOz)} ${bev.name} added${yesterday ? ' to yesterday' : ''}`, {
       actionLabel: 'Undo',
       onAction: () => app.undo(id),
     });
@@ -131,7 +128,7 @@ export default function AddDrink() {
         contentContainerStyle={{ paddingHorizontal: 26, paddingBottom: 12, gap: 26 }}
         keyboardShouldPersistTaps="handled"
       >
-        {/* Photo detection — snap or upload, Claude fills in type + amount */}
+        {/* Photo detection — snap or upload, AI fills in type + amount */}
         <View>
           <Pressable
             onPress={snap}
@@ -152,94 +149,65 @@ export default function AddDrink() {
           )}
         </View>
 
-        {/* Amount — first, per the flow: how much, then what */}
-        <View>
-          <View style={s.amtRow}>
-            <Text style={s.section}>How much</Text>
-            <Text style={s.readout}>{fmtVol(ml, !!useOz)}</Text>
-          </View>
-          <View style={{ marginTop: 4 }}>
-            <Ruler
-              value={ml} min={AMT.min} max={AMT.max} px={AMT.px} step={AMT.step}
-              labels={Array.from({ length: 5 }, (_, i) => {
-                const v = 200 + i * 200;
-                return { left: (v - AMT.min) * AMT.px, text: String(v) };
-              })}
-              onChange={setMl}
-            />
-          </View>
-          {/* Standard servings — tap to set the ruler */}
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 9, marginTop: 10 }}>
-            {PRESETS.map((p) => (
-              <Pressable
-                key={p.ml}
-                onPress={() => setMl(p.ml)}
-                style={[s.whenChip, ml === p.ml && s.whenChipOn]}
-              >
-                <Text style={{ fontFamily: F.body, fontSize: 13.5, color: C.text }}>
-                  {p.label} · {fmtVol(p.ml, !!useOz)}
-                </Text>
-              </Pressable>
-            ))}
-          </View>
-        </View>
+        {/* Amount — type it in, slide the ruler, or tap a standard size */}
+        <AmountField ml={ml} onChange={setMl} useOz={!!useOz} usualMl={usualMl} />
 
-        {/* Beverage list */}
+        {/* Drink grid */}
         <View>
           <Text style={[s.section, { marginBottom: 12 }]}>What did you drink</Text>
-          {bevs.map((b) => {
-            const custom = b.id.startsWith('custom_');
-            return (
-              <Pressable
-                key={b.id}
-                onPress={() => setBevId(b.id)}
-                style={({ pressed }) => [s.bevRow, pressed && { opacity: 0.7 }]}
-              >
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 }}>
-                  <View style={[s.radio, bevId === b.id && { borderColor: C.accent }]}>
-                    {bevId === b.id && <View style={s.radioDot} />}
-                  </View>
-                  <Text style={{ fontFamily: F.body, fontSize: 16, color: C.text }} numberOfLines={1}>
-                    {b.name}
-                  </Text>
-                </View>
-                <Text style={{ fontFamily: F.body, fontSize: 13.5, color: C.muted }}>
-                  {b.factor === 1 ? 'counts fully' : `counts ${Math.round(b.factor * 100)}%`}
-                </Text>
-                {custom && (
-                  <Pressable onPress={() => removeCustom(b.id, b.name)} hitSlop={10}>
-                    <Text style={{ fontFamily: F.body, fontSize: 15, color: C.muted }}>✕</Text>
-                  </Pressable>
-                )}
-              </Pressable>
-            );
-          })}
-          <CustomDrinkForm onCreated={setBevId} />
+          <DrinkPicker
+            selectedId={bevId}
+            favorites={app.favorites}
+            stats={stats}
+            onPick={pick}
+            onRemoveFavorite={(id, label) => {
+              app.removeFavorite(id);
+              showToast(`${label} removed from favorites`);
+            }}
+            onRemoveCustom={removeCustom}
+            footer={<CustomDrinkForm onCreated={setBevId} />}
+          />
+          {/* Star the current drink + size for one-tap logging on Home */}
+          <Pressable
+            onPress={() => {
+              const nowFav = app.toggleFavorite(bevId, ml);
+              showToast(nowFav
+                ? `${bev.name} · ${fmtVol(ml, !!useOz)} pinned to favorites`
+                : 'Removed from favorites');
+            }}
+            style={({ pressed }) => [s.favRow, pressed && { opacity: 0.7 }]}
+            hitSlop={6}
+          >
+            <Text style={{ fontSize: 17, color: isFav ? C.accent : C.faint }}>{isFav ? '★' : '☆'}</Text>
+            <Text style={{ fontFamily: F.body, fontSize: 14.5, color: C.accentDeep }}>
+              {isFav
+                ? `${bev.name} · ${fmtVol(ml, !!useOz)} is a favorite`
+                : `Save ${bev.name} · ${fmtVol(ml, !!useOz)} as a favorite`}
+            </Text>
+          </Pressable>
         </View>
 
         {/* When */}
         <View>
           <Text style={[s.section, { marginBottom: 12 }]}>When</Text>
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
-            {WHENS.map((w) => (
-              <Pressable
-                key={w.h}
-                onPress={() => setHoursAgo(w.h)}
-                style={[s.whenChip, hoursAgo === w.h && s.whenChipOn]}
-              >
-                <Text style={{ fontFamily: F.body, fontSize: 15, color: C.text }}>{w.label}</Text>
-              </Pressable>
-            ))}
-          </View>
+          <TimeField sel={when} onChange={setWhen} />
         </View>
 
         {/* Hydration line */}
         <View style={s.hydRow}>
           <Text style={{ fontFamily: F.body, fontSize: 15, color: C.muted }}>Counts as hydration</Text>
-          <Text style={{ fontFamily: F.heading, fontSize: 19, color: C.text }}>
+          <Text style={{
+            fontFamily: F.heading, fontSize: 19,
+            color: hydration < 0 ? C.accent2 : C.text,
+          }}>
             {fmtVol(hydration, !!useOz)}
           </Text>
         </View>
+        {hydration < 0 && (
+          <Text style={{ fontFamily: F.body, fontSize: 13, color: C.muted, marginTop: -18 }}>
+            Alcohol dehydrates — this entry subtracts from today&apos;s total.
+          </Text>
+        )}
       </RulerScrollView>
 
       <View style={{ paddingHorizontal: 26, paddingTop: 12, paddingBottom: 16 }}>
@@ -284,7 +252,7 @@ function CustomDrinkForm({ onCreated }: { onCreated: (id: string) => void }) {
     return (
       <Pressable
         onPress={() => setOpen(true)}
-        style={({ pressed }) => [s.bevRow, { borderBottomWidth: 0 }, pressed && { opacity: 0.7 }]}
+        style={({ pressed }) => [{ paddingVertical: 11 }, pressed && { opacity: 0.7 }]}
       >
         <Text style={{ fontFamily: F.body, fontSize: 16, color: C.accentDeep }}>
           ＋ Add your own drink
@@ -365,31 +333,17 @@ const s = StyleSheet.create({
   },
   title: { fontFamily: F.heading, fontSize: 22, letterSpacing: -0.4, color: C.text },
   section: { fontFamily: F.heading, fontSize: 19, color: C.text },
-  bevRow: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    gap: 12, paddingVertical: 11, paddingHorizontal: 2,
-    borderBottomWidth: 1, borderBottomColor: C.divider,
+  favRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    paddingTop: 14,
   },
-  radio: {
-    width: 18, height: 18, borderRadius: 9,
-    borderWidth: 1.5, borderColor: C.neutral400,
-    alignItems: 'center', justifyContent: 'center',
-  },
-  radioDot: { width: 9, height: 9, borderRadius: 4.5, backgroundColor: C.accent },
-  amtRow: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: 12 },
-  readout: { fontFamily: F.heading, fontSize: 30, letterSpacing: -0.7, color: C.text },
-  whenChip: {
-    borderWidth: 1, borderColor: C.divider, borderRadius: 12,
-    paddingVertical: 8, paddingHorizontal: 14,
-  },
-  whenChipOn: { borderWidth: 1.5, borderColor: C.accent, paddingVertical: 7.5, paddingHorizontal: 13.5, borderRadius: 12 },
   hydRow: {
     flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between',
     gap: 12, paddingTop: 2,
   },
   ctaTxt: { fontFamily: F.heading, fontSize: 18, color: C.onAccent },
   customBox: {
-    marginTop: 14, padding: 16, gap: 10,
+    marginTop: 8, padding: 16, gap: 10,
     borderWidth: 1, borderColor: C.divider, borderRadius: 14,
   },
   customTitle: { fontFamily: F.heading, fontSize: 17, color: C.text },

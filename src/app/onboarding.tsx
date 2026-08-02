@@ -1,6 +1,7 @@
 // Onboarding — port of "HydraTrack Onboarding.dc.html" (Broadsheet system).
 // Editorial: big serif headlines, underline input, ruler-tape sliders,
 // radio lists, and an animated water glass on the goal step.
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Haptics from 'expo-haptics';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
@@ -132,6 +133,9 @@ export default function Onboarding() {
     const ctx = await app.detectEnvironment().catch(() => null);
     setLocBusy(false);
     setLocation(ctx ? 'allow' : 'skip');
+    // A grant is remembered: from now on the weather refreshes itself daily
+    // without asking again (the user can turn it off from the home card).
+    if (ctx) AsyncStorage.setItem('weatherAuto', '1').catch(() => {});
     if (ctx?.tempC != null) {
       setClimate(ctx.tempC >= 28 ? 'hot' : ctx.tempC < 15 ? 'cold' : 'moderate');
     }

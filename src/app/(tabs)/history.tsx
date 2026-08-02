@@ -5,10 +5,12 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Line } from 'react-native-svg';
 
+import { router } from 'expo-router';
+
 import { useApp } from '@/lib/app-state';
 import { AppHeader, LogRow } from '@/lib/chrome';
 import { store } from '@/lib/db';
-import { beverageById, fmtVol, todayKey } from '@/lib/engines';
+import { beverageById, fmtSigned, fmtVol, todayKey } from '@/lib/engines';
 import { C, F, T } from '@/lib/theme';
 
 const WD = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
@@ -185,15 +187,22 @@ function DayJournal({ dayKey, useOz }: { dayKey: string; useOz: boolean }) {
       <View style={{ marginTop: 12 }}>
         {[...logs].reverse().map((l) => {
           const t = new Date(l.loggedAt);
+          const b = beverageById(l.beverageId);
           return (
             <LogRow
               key={l.id}
-              name={beverageById(l.beverageId).name}
+              name={`${b.emoji} ${b.name}`}
               time={`${String(t.getHours()).padStart(2, '0')}:${String(t.getMinutes()).padStart(2, '0')}`}
-              amount={`+${fmtVol(l.amountMl, useOz)}`}
+              amount={fmtSigned(l.amountMl, useOz)}
+              onPress={() => router.push({ pathname: '/edit-log', params: { id: l.id } })}
             />
           );
         })}
+        {logs.length > 0 && (
+          <Text style={[T.body, { fontSize: 12.5, marginTop: 8 }]}>
+            Tap an entry to edit or delete it.
+          </Text>
+        )}
       </View>
     </View>
   );

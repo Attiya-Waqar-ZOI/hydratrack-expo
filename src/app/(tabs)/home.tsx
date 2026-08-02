@@ -8,7 +8,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useApp } from '@/lib/app-state';
 import { AppHeader, LogRow } from '@/lib/chrome';
-import { beverageById, fmtVol } from '@/lib/engines';
+import { beverageById, fmtSigned, fmtVol, mixColor, shade } from '@/lib/engines';
 import { GoalGlass } from '@/lib/glass';
 import { showToast } from '@/lib/toast';
 import { C, F, R, T } from '@/lib/theme';
@@ -42,17 +42,29 @@ export default function Home() {
         : 'No weather adjustment today.';
       return `${adj}, ${t}°C in ${ctx.place}. ${tail}`;
     }
-    return 'Turn on location to adjust your goal for heat and altitude.';
+    if (app.weatherAuto) return 'Checking today’s weather…';
+    return 'Turn on location once — the goal then adjusts itself for heat every day.';
   })();
 
-  const log = (ml: number) => {
-    const id = app.addDrink(ml, beverageById('water'));
-    showToast(`${fmtVol(ml, useOz)} added`, {
+  const log = (ml: number, bevId = 'water') => {
+    const bev = beverageById(bevId);
+    const id = app.addDrink(ml, bev);
+    showToast(`${fmtVol(ml, useOz)} ${bev.name} added`, {
       actionLabel: 'Undo',
       onAction: () => app.undo(id),
     });
   };
 
+  const enableWeather = async () => {
+    const ok = await app.setWeatherAuto(true).catch(() => false);
+    showToast(ok
+      ? 'Weather is on — your goal now adjusts automatically each day'
+      : 'Could not read the weather — check location permission');
+  };
+
+  // The glass shows what the day actually held: coffee tints it brown,
+  // juice orange… plain water keeps the classic blue.
+  const mix = mixColor(app.todayLogs);
   const recent = [...app.todayLogs].reverse().slice(0, 3);
 
   return (
@@ -79,23 +91,41 @@ export default function Home() {
                     : 'Goal met. Nicely done.'}
               </Text>
             </View>
-            <GoalGlass fill={progress} width={104} ground={C.surface} />
+            <GoalGlass
+              fill={progress} width={104} ground={C.surface}
+              waterColor={mix ?? C.accent300}
+              waterDeep={mix ? shade(mix, 0.28) : C.accent500}
+            />
           </View>
         </View>
 
-        {/* Quick add card */}
+        {/* Quick add card: the user's starred drinks, one tap each.
+            Before any favorite exists, plain water sizes fill in. */}
         <View style={s.card}>
-          <Text style={s.section}>Log a glass</Text>
+          <Text style={s.section}>{app.favorites.length > 0 ? 'Favorites' : 'Log a glass'}</Text>
           <View style={s.quickRow}>
-            {QUICK.map((ml) => (
-              <Pressable
-                key={ml}
-                onPress={() => log(ml)}
-                style={({ pressed }) => [s.quickBtn, pressed && { backgroundColor: C.accent100 }]}
-              >
-                <Text style={s.quickTxt}>{fmtVol(ml, useOz)}</Text>
-              </Pressable>
-            ))}
+            {app.favorites.length > 0
+              ? app.favorites.map((f) => {
+                const b = beverageById(f.beverageId);
+                return (
+                  <Pressable
+                    key={f.id}
+                    onPress={() => log(f.volumeMl, f.beverageId)}
+                    style={({ pressed }) => [s.quickBtn, pressed && { backgroundColor: C.accent100 }]}
+                  >
+                    <Text style={s.quickTxt}>{b.emoji} {b.name} · {fmtVol(f.volumeMl, useOz)}</Text>
+                  </Pressable>
+                );
+              })
+              : QUICK.map((ml) => (
+                <Pressable
+                  key={ml}
+                  onPress={() => log(ml)}
+                  style={({ pressed }) => [s.quickBtn, pressed && { backgroundColor: C.accent100 }]}
+                >
+                  <Text style={s.quickTxt}>{fmtVol(ml, useOz)}</Text>
+                </Pressable>
+              ))}
             <Pressable
               onPress={() => router.push('/add')}
               style={({ pressed }) => [s.otherBtn, pressed && { backgroundColor: C.accent200 }]}
@@ -104,19 +134,25 @@ export default function Home() {
               <Text style={s.ghostTxt}>Other drink</Text>
             </Pressable>
           </View>
-        </View>
-
-        {/* Weather card */}
-        <View style={s.card}>
-          <Text style={[s.section, { marginBottom: 6 }]}>Today&apos;s weather</Text>
-          <Text style={[T.body, { fontSize: 14.5, lineHeight: 21 }]}>{weatherLine}</Text>
-          {app.stepBoost > 0 && app.stepsToday != null && (
-            <Text style={[T.body, { fontSize: 14.5, lineHeight: 21, marginTop: 4 }]}>
-              🚶 Plus {app.stepBoost} ml for {app.stepsToday.toLocaleString()} steps today.
+          {app.favorites.length === 0 && (
+            <Text style={[T.body, { fontSize: 13, marginTop: 10 }]}>
+              ☆ Star a drink and size in “Other drink” to pin it here.
             </Text>
           )}
-          {!ctx?.place && (
-            <Pressable onPress={() => app.detectEnvironment().catch(() => {})} style={{ marginTop: 8 }} hitSlop={6}>
+        </View>
+
+        {/* Weather + steps card */}
+        <View style={s.card}>
+          <Text style={[s.section, { marginBottom: 6 }]}>Today&apos;s conditions</Text>
+          <Text style={[T.body, { fontSize: 14.5, lineHeight: 21 }]}>{weatherLine}</Text>
+          {app.stepsToday != null && (
+            <Text style={[T.body, { fontSize: 14.5, lineHeight: 21, marginTop: 4 }]}>
+              🚶 {app.stepsToday.toLocaleString()} steps today
+              {app.stepBoost > 0 ? ` — goal raised by ${app.stepBoost} ml.` : '.'}
+            </Text>
+          )}
+          {!ctx?.place && !app.weatherAuto && (
+            <Pressable onPress={enableWeather} style={{ marginTop: 8 }} hitSlop={6}>
               <Text style={s.ghostTxt}>Use my location</Text>
             </Pressable>
           )}
@@ -130,12 +166,14 @@ export default function Home() {
           )}
           {recent.map((l) => {
             const t = new Date(l.loggedAt);
+            const b = beverageById(l.beverageId);
             return (
               <LogRow
                 key={l.id}
-                name={beverageById(l.beverageId).name}
+                name={`${b.emoji} ${b.name}`}
                 time={`${String(t.getHours()).padStart(2, '0')}:${String(t.getMinutes()).padStart(2, '0')}`}
-                amount={`+${fmtVol(l.amountMl, useOz)}`}
+                amount={fmtSigned(l.amountMl, useOz)}
+                onPress={() => router.push({ pathname: '/edit-log', params: { id: l.id } })}
               />
             );
           })}

@@ -1,7 +1,7 @@
 // Shared app chrome for the tab screens: the droplet masthead with the
 // date at the right, per the Broadsheet app design.
 import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { useApp } from './app-state';
 import { Droplet } from './logo';
@@ -22,18 +22,26 @@ export function clock12(min: number): string {
   return `${h12}:${String(m).padStart(2, '0')} ${ap}`;
 }
 
-/// Divider-ruled drink row: name · time · +amount.
-export function LogRow({ name, time, amount }: {
-  name: string; time: string; amount: string;
+/// Divider-ruled drink row: name · time · ±amount. With onPress it becomes
+/// tappable (opens the edit sheet) and shows a chevron.
+export function LogRow({ name, time, amount, onPress }: {
+  name: string; time: string; amount: string; onPress?: () => void;
 }) {
-  return (
-    <View style={st.logRow}>
-      <Text style={st.logName}>{name}</Text>
+  const body = (
+    <>
+      <Text style={st.logName} numberOfLines={1}>{name}</Text>
       <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 12 }}>
         <Text style={st.logTime}>{time}</Text>
-        <Text style={st.logAmt}>{amount}</Text>
+        <Text style={[st.logAmt, amount.startsWith('−') && { color: C.accent2 }]}>{amount}</Text>
+        {onPress && <Text style={st.chevron}>›</Text>}
       </View>
-    </View>
+    </>
+  );
+  if (!onPress) return <View style={st.logRow}>{body}</View>;
+  return (
+    <Pressable onPress={onPress} style={({ pressed }) => [st.logRow, pressed && { opacity: 0.65 }]}>
+      {body}
+    </Pressable>
   );
 }
 
@@ -79,7 +87,8 @@ const st = StyleSheet.create({
     flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between',
     gap: 12, paddingVertical: 9, borderBottomWidth: 1, borderBottomColor: C.divider,
   },
-  logName: { fontFamily: F.body, fontSize: 16, color: C.text },
+  logName: { fontFamily: F.body, fontSize: 16, color: C.text, flexShrink: 1 },
   logTime: { fontFamily: F.body, fontSize: 14, color: C.faint },
   logAmt: { fontFamily: F.heading, fontSize: 16, color: C.text },
+  chevron: { fontFamily: F.body, fontSize: 17, color: C.faint },
 });
