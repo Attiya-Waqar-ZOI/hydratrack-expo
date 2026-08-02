@@ -8,7 +8,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useApp } from '@/lib/app-state';
 import { AppHeader, LogRow } from '@/lib/chrome';
-import { beverageById, fmtSigned, fmtVol, mixColor, shade } from '@/lib/engines';
+import { beverageById, fmtSigned, fmtVol, shade } from '@/lib/engines';
 import { GoalGlass } from '@/lib/glass';
 import { showToast } from '@/lib/toast';
 import { C, F, R, T } from '@/lib/theme';
@@ -62,9 +62,10 @@ export default function Home() {
       : 'Could not read the weather — check location permission');
   };
 
-  // The glass shows what the day actually held: coffee tints it brown,
-  // juice orange… plain water keeps the classic blue.
-  const mix = mixColor(app.todayLogs);
+  // The glass wears the color of the LAST drink logged today: coffee turns
+  // it brown, juice orange… water brings back the classic blue.
+  const lastLog = app.todayLogs[app.todayLogs.length - 1];
+  const mix = lastLog ? beverageById(lastLog.beverageId).color : null;
   const recent = [...app.todayLogs].reverse().slice(0, 3);
 
   return (
