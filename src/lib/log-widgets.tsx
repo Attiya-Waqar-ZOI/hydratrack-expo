@@ -18,7 +18,8 @@ import type { FavoriteRow } from './types';
 const DateTimePicker = Platform.OS === 'web' ? null : require('@react-native-community/datetimepicker').default;
 
 // ── Amount ──────────────────────────────────────────────────────────
-const AMT = { min: 50, max: 1000, px: 0.24, step: 50 };
+// step 1: the tape slides granularly, any ml value is reachable by drag
+const AMT = { min: 50, max: 1000, px: 0.24, step: 1 };
 
 export function AmountField({ ml, onChange, useOz, usualMl }: {
   ml: number;
@@ -69,7 +70,7 @@ export function AmountField({ ml, onChange, useOz, usualMl }: {
       <View style={{ marginTop: 4 }}>
         <Ruler
           value={Math.min(AMT.max, Math.max(AMT.min, ml))}
-          min={AMT.min} max={AMT.max} px={AMT.px} step={AMT.step}
+          min={AMT.min} max={AMT.max} px={AMT.px} step={AMT.step} tickEvery={50}
           labels={Array.from({ length: 5 }, (_, i) => {
             const v = 200 + i * 200;
             return { left: (v - AMT.min) * AMT.px, text: String(v) };

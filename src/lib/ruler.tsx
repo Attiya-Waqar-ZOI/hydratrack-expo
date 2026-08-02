@@ -40,14 +40,19 @@ export const RulerScrollView = React.forwardRef<ScrollView, ScrollViewProps>(
 );
 
 export function Ruler({
-  value, min, max, px, step = 1, labels, onChange,
+  value, min, max, px, step = 1, tickEvery, labels, onChange,
 }: {
   value: number; min: number; max: number;
   px: number;               // pixels per unit
   step?: number;            // snap increment, in units
+  tickEvery?: number;       // visual tick + haptic spacing (defaults to step)
   labels: RulerLabel[];     // major tick positions (px from strip start) + text
   onChange: (v: number) => void;
 }) {
+  // A fine step (e.g. 1 ml) still draws readable ticks and buzzes only at
+  // the coarser interval, or the strip smears and the haptics never stop.
+  const tickStep = tickEvery ?? step;
+  const tickRef = useRef(tickStep); tickRef.current = tickStep;
   const [half, setHalf] = useState(160);
   const halfRef = useRef(half); halfRef.current = half;
   const valueRef = useRef(value); valueRef.current = value;
@@ -86,9 +91,10 @@ export function Ruler({
       const cont = Math.max(min, Math.min(max, raw));           // continuous, follows the finger
       x.setValue(halfRef.current - (cont - min) * px);
       const snapped = Math.max(min, Math.min(max, Math.round(raw / step) * step));
-      if (snapped !== valueRef.current) {
+      const prev = valueRef.current;
+      if (snapped !== prev) {
         changeRef.current(snapped);
-        if (NATIVE) tick();
+        if (NATIVE && Math.floor(snapped / tickRef.current) !== Math.floor(prev / tickRef.current)) tick();
       }
     },
     onPanResponderRelease: () => {
@@ -111,11 +117,11 @@ export function Ruler({
 
   // The tick strip is static content; build it once per config.
   const strip = useMemo(() => {
-    const nTicks = Math.floor((max - min) / step) + 1;
+    const nTicks = Math.floor((max - min) / tickStep) + 1;
     return (
       <>
         {Array.from({ length: nTicks }, (_, i) => (
-          <View key={i} style={[st.minor, { left: i * step * px }]} />
+          <View key={i} style={[st.minor, { left: i * tickStep * px }]} />
         ))}
         {labels.map((l) => (
           <React.Fragment key={l.left}>
@@ -125,7 +131,7 @@ export function Ruler({
         ))}
       </>
     );
-  }, [min, max, step, px, labels]);
+  }, [min, max, tickStep, px, labels]);
 
   return (
     <View
