@@ -109,6 +109,9 @@ export default function You() {
         {/* Reminders */}
         <NotificationSettings />
 
+        {/* Weather */}
+        <WeatherSettings />
+
         {/* Steps */}
         <StepSettings />
 
@@ -161,7 +164,7 @@ function VisionSettings() {
         <View style={{ flex: 1 }}>
           <Text style={s.rowTitle}>Photo detection</Text>
           <Text style={s.rowSub}>
-            {saved ? 'On — key stored on this device' : 'Needs your Anthropic API key'}
+            {saved ? 'On — key stored on this device' : 'Needs your AI key (Gemini or Claude)'}
           </Text>
         </View>
         <Seg
@@ -213,6 +216,33 @@ const visionStyles = StyleSheet.create({
 });
 
 /// Step-aware goal: motion-sensor steps add to the daily target.
+/// One-time weather setting: allowed once, refreshes itself daily.
+function WeatherSettings() {
+  const app = useApp();
+
+  const toggle = async (want: boolean) => {
+    const ok = await app.setWeatherAuto(want).catch(() => false);
+    if (want && !ok) showToast('Could not read the weather — check location permission');
+  };
+
+  const ctx = app.dayContext;
+  const sub = !app.weatherAuto
+    ? 'Hot or dry days raise your goal'
+    : ctx?.tempC != null
+      ? `${Math.round(ctx.tempC)}°C${ctx.place ? ` in ${ctx.place}` : ''}${app.env.totalMl > 0 ? ` · +${app.env.totalMl} ml today` : ' · no boost today'}`
+      : 'On — checks once a day';
+
+  return (
+    <View style={[s.row, s.rowHead]}>
+      <View style={{ flex: 1 }}>
+        <Text style={s.rowTitle}>Weather adjusts the goal</Text>
+        <Text style={s.rowSub}>{sub}</Text>
+      </View>
+      <Seg options={['Off', 'On']} selected={app.weatherAuto ? 1 : 0} onSelect={(i) => toggle(i === 1)} />
+    </View>
+  );
+}
+
 function StepSettings() {
   const app = useApp();
   const [on, setOn] = useState(false);
