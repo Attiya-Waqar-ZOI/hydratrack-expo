@@ -8,6 +8,10 @@ import { BEVERAGES, Beverage, beverageById } from './engines';
 /// The key is entered in the You tab and lives only in this device's
 /// storage — never in the bundle, since the app is shared via EAS Update.
 
+// Feature switch: photo drink detection is hidden for now (flip to true to
+// bring back the camera button in the add sheet and the You-tab key entry).
+export const VISION_ENABLED = false;
+
 const KEY_STORAGE = 'anthropicApiKey';
 
 export async function getApiKey(): Promise<string | null> {

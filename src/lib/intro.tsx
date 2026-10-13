@@ -183,7 +183,8 @@ export function IntroSplash() {
 
 const st = StyleSheet.create({
   wrap: {
-    ...StyleSheet.absoluteFillObject,
+    // RN 0.86 dropped StyleSheet.absoluteFillObject; spelled out instead.
+    position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
     backgroundColor: C.bg,
     zIndex: 100,
   },

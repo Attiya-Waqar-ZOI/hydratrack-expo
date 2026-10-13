@@ -16,7 +16,7 @@ import { AmountField, DrinkPicker, TimeField, WhenSel, resolveWhen } from '@/lib
 import { RulerScrollView } from '@/lib/ruler';
 import { showToast } from '@/lib/toast';
 import { C, F, btnPrimary } from '@/lib/theme';
-import { detectDrink, getApiKey } from '@/lib/vision';
+import { VISION_ENABLED, detectDrink, getApiKey } from '@/lib/vision';
 
 export default function AddDrink() {
   const app = useApp();
@@ -128,26 +128,29 @@ export default function AddDrink() {
         contentContainerStyle={{ paddingHorizontal: 26, paddingBottom: 12, gap: 26 }}
         keyboardShouldPersistTaps="handled"
       >
-        {/* Photo detection — snap or upload, AI fills in type + amount */}
-        <View>
-          <Pressable
-            onPress={snap}
-            disabled={scanning}
-            style={({ pressed }) => [s.snapBtn, pressed && { backgroundColor: C.accent100 }]}
-          >
-            {scanning
-              ? <ActivityIndicator color={C.accentDeep} />
-              : <Text style={{ fontSize: 20 }}>📷</Text>}
-            <Text style={s.snapTxt}>
-              {scanning ? 'Identifying your drink…' : 'Snap or upload a photo'}
-            </Text>
-          </Pressable>
-          {guessNote && (
-            <Text style={{ fontFamily: F.body, fontSize: 13.5, lineHeight: 19, color: C.neutral600, marginTop: 8 }}>
-              ✨ {guessNote}
-            </Text>
-          )}
-        </View>
+        {/* Photo detection — snap or upload, AI fills in type + amount.
+            Hidden while VISION_ENABLED is off. */}
+        {VISION_ENABLED && (
+          <View>
+            <Pressable
+              onPress={snap}
+              disabled={scanning}
+              style={({ pressed }) => [s.snapBtn, pressed && { backgroundColor: C.accent100 }]}
+            >
+              {scanning
+                ? <ActivityIndicator color={C.accentDeep} />
+                : <Text style={{ fontSize: 20 }}>📷</Text>}
+              <Text style={s.snapTxt}>
+                {scanning ? 'Identifying your drink…' : 'Snap or upload a photo'}
+              </Text>
+            </Pressable>
+            {guessNote && (
+              <Text style={{ fontFamily: F.body, fontSize: 13.5, lineHeight: 19, color: C.neutral600, marginTop: 8 }}>
+                ✨ {guessNote}
+              </Text>
+            )}
+          </View>
+        )}
 
         {/* Amount — type it in, slide the ruler, or tap a standard size */}
         <AmountField ml={ml} onChange={setMl} useOz={!!useOz} usualMl={usualMl} />

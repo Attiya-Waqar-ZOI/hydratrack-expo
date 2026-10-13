@@ -37,9 +37,11 @@ function TabButton({ route, active, onPress }: {
   );
 }
 
+type TabRoute = { key: string; name: string };
+
 function EditorialTabBar({ state, navigation }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
-  const routes = state.routes.filter((r) => r.name !== 'add-action');
+  const routes = state.routes.filter((r: TabRoute) => r.name !== 'add-action');
   const activeName = state.routes[state.index]?.name;
   const go = (name: string) => {
     if (name !== activeName) navigation.navigate(name as never);
@@ -48,7 +50,7 @@ function EditorialTabBar({ state, navigation }: BottomTabBarProps) {
   const right = routes.slice(2);
   return (
     <View style={[st.bar, { paddingBottom: Math.max(insets.bottom - 8, 0) }]}>
-      {left.map((r) => (
+      {left.map((r: TabRoute) => (
         <TabButton key={r.key} route={r.name} active={activeName === r.name} onPress={() => go(r.name)} />
       ))}
       <Pressable
@@ -60,7 +62,7 @@ function EditorialTabBar({ state, navigation }: BottomTabBarProps) {
           <Path d="M11 3v16M3 11h16" stroke={C.onAccent} strokeWidth={2} strokeLinecap="round" />
         </Svg>
       </Pressable>
-      {right.map((r) => (
+      {right.map((r: TabRoute) => (
         <TabButton key={r.key} route={r.name} active={activeName === r.name} onPress={() => go(r.name)} />
       ))}
     </View>

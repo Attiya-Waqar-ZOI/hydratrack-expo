@@ -156,7 +156,8 @@ const st = StyleSheet.create({
   // anywhere near the strip grabs it.
   grab: { paddingVertical: 16, marginVertical: -10, justifyContent: 'center' },
   wrap: { height: 44, position: 'relative' },
-  window: { ...StyleSheet.absoluteFillObject, overflow: 'hidden' },
+  // RN 0.86 dropped StyleSheet.absoluteFillObject; spelled out instead.
+  window: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, overflow: 'hidden' },
   strip: { position: 'absolute', top: 0, height: 44 },
   minor: { position: 'absolute', top: 8, width: 1, height: 6, backgroundColor: C.neutral400 },
   major: { position: 'absolute', top: 4, width: 1, height: 10, backgroundColor: C.neutral600 },

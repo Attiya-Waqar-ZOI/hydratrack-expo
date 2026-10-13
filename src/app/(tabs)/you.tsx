@@ -20,7 +20,7 @@ import { Ruler } from '@/lib/ruler';
 import { stepsEnabled } from '@/lib/steps';
 import { showToast } from '@/lib/toast';
 import { C, F, T } from '@/lib/theme';
-import { getApiKey, setApiKey } from '@/lib/vision';
+import { VISION_ENABLED, getApiKey, setApiKey } from '@/lib/vision';
 
 const GOAL = { min: 1000, max: 6000, px: 0.36, step: 50 };
 
@@ -115,8 +115,8 @@ export default function You() {
         {/* Steps */}
         <StepSettings />
 
-        {/* Photo detection API key */}
-        <VisionSettings />
+        {/* Photo detection API key — hidden while the feature is off */}
+        {VISION_ENABLED && <VisionSettings />}
 
         {/* Units */}
         <View style={[s.row, s.rowHead]}>
