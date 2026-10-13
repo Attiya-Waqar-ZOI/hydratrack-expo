@@ -28,6 +28,8 @@ export function createStore(): Store {
     },
     logsForDay: (dayKey) =>
       logs.filter((l) => l.dayKey === dayKey).sort((a, b) => a.loggedAt - b.loggedAt),
+    allLogs: () => [...logs].sort((a, b) => a.loggedAt - b.loggedAt),
+    allDayContexts: () => [...contexts.values()].sort((a, b) => a.dayKey.localeCompare(b.dayKey)),
     totalsByDay: (limitDays) => {
       const m = new Map<string, number>();
       for (const l of logs) m.set(l.dayKey, (m.get(l.dayKey) ?? 0) + l.amountMl);

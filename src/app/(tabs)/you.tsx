@@ -20,6 +20,9 @@ import { Ruler } from '@/lib/ruler';
 import { stepsEnabled } from '@/lib/steps';
 import { showToast } from '@/lib/toast';
 import { C, F, T } from '@/lib/theme';
+import {
+  BackupFreq, exportBackup, getBackupFreq, lastExportAt, restoreBackup, setBackupFreq,
+} from '@/lib/backup';
 import { VISION_ENABLED, getApiKey, setApiKey } from '@/lib/vision';
 
 const GOAL = { min: 1000, max: 6000, px: 0.36, step: 50 };
@@ -117,6 +120,9 @@ export default function You() {
 
         {/* Photo detection API key — hidden while the feature is off */}
         {VISION_ENABLED && <VisionSettings />}
+
+        {/* Backup */}
+        <BackupSettings />
 
         {/* Units */}
         <View style={[s.row, s.rowHead]}>
@@ -216,6 +222,93 @@ const visionStyles = StyleSheet.create({
 });
 
 /// Step-aware goal: motion-sensor steps add to the daily target.
+/// Export everything to a file (data is device-local — Expo Go reinstalls
+/// or load-source switches start empty), restore merges a file back in.
+function BackupSettings() {
+  const app = useApp();
+  const [freq, setFreq] = useState<BackupFreq>('weekly');
+  const [lastAt, setLastAt] = useState<number | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    getBackupFreq().then(setFreq);
+    lastExportAt().then(setLastAt);
+  }, []);
+
+  const doExport = async () => {
+    if (busy) return;
+    setBusy(true);
+    try {
+      const ok = await exportBackup();
+      if (ok) setLastAt(Date.now());
+      else showToast('Sharing is not available here');
+    } catch {
+      showToast('Could not create the backup — try again');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const doRestore = async () => {
+    if (busy) return;
+    setBusy(true);
+    try {
+      const res = await restoreBackup();
+      if (res === 'cancelled') return;
+      app.refresh();
+      const added = res.logs + res.customBeverages + res.favorites;
+      showToast(added > 0 || res.profileApplied
+        ? `Restored: ${res.logs} drinks, ${res.customBeverages} custom drinks, ${res.favorites} favorites`
+        : 'Nothing new in that backup — all data already on this phone');
+    } catch {
+      showToast('That file is not a readable HydraTrack backup');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const pick = (i: number) => {
+    const f: BackupFreq = (['off', 'weekly', 'daily'] as const)[i];
+    setFreq(f);
+    setBackupFreq(f).catch(() => {});
+  };
+
+  const sub = lastAt
+    ? `Last backup ${new Date(lastAt).toLocaleDateString()}`
+    : 'Never backed up — data lives only on this phone';
+
+  return (
+    <View style={s.row}>
+      <View style={s.rowHead}>
+        <View style={{ flex: 1 }}>
+          <Text style={s.rowTitle}>Backup</Text>
+          <Text style={s.rowSub}>{sub}</Text>
+        </View>
+        <Seg options={['Off', 'Weekly', 'Daily']} selected={['off', 'weekly', 'daily'].indexOf(freq)} onSelect={pick} />
+      </View>
+      <Text style={[s.rowSub, { marginTop: 8 }]}>
+        Weekly or daily: when you open the app, the save sheet appears with a fresh backup — one tap to save it to Files.
+      </Text>
+      <View style={{ flexDirection: 'row', gap: 10, marginTop: 12 }}>
+        <Pressable
+          onPress={doExport}
+          disabled={busy}
+          style={({ pressed }) => [s.backupBtn, pressed && { backgroundColor: C.accent100 }, busy && { opacity: 0.5 }]}
+        >
+          <Text style={s.backupBtnTxt}>Export now</Text>
+        </Pressable>
+        <Pressable
+          onPress={doRestore}
+          disabled={busy}
+          style={({ pressed }) => [s.backupBtn, pressed && { backgroundColor: C.accent100 }, busy && { opacity: 0.5 }]}
+        >
+          <Text style={s.backupBtnTxt}>Restore…</Text>
+        </Pressable>
+      </View>
+    </View>
+  );
+}
+
 /// One-time weather setting: allowed once, refreshes itself daily.
 function WeatherSettings() {
   const app = useApp();
@@ -386,6 +479,11 @@ const s = StyleSheet.create({
   stepBtn: { fontFamily: F.body, fontSize: 20, color: C.accentDeep, width: 24, textAlign: 'center' },
   count: { fontFamily: F.heading, fontSize: 19, minWidth: 22, textAlign: 'center', color: C.text },
   timeChip: { backgroundColor: C.neutral200, borderRadius: 999, paddingVertical: 5, paddingHorizontal: 12 },
+  backupBtn: {
+    borderWidth: 1, borderColor: C.divider, borderRadius: 12,
+    paddingVertical: 10, paddingHorizontal: 18,
+  },
+  backupBtnTxt: { fontFamily: F.heading, fontSize: 14.5, color: C.accentDeep },
   dangerBtn: {
     backgroundColor: C.accent2100,
     borderWidth: 1, borderColor: C.accent2200,

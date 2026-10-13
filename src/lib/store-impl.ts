@@ -64,6 +64,10 @@ export function createStore(): Store {
     logsForDay: (dayKey) =>
       db.getAllSync<LogRow>(
         'SELECT * FROM water_log WHERE dayKey = ? ORDER BY loggedAt ASC', [dayKey]),
+    allLogs: () =>
+      db.getAllSync<LogRow>('SELECT * FROM water_log ORDER BY loggedAt ASC'),
+    allDayContexts: () =>
+      db.getAllSync<DayContextRow>('SELECT * FROM day_context ORDER BY dayKey ASC'),
     totalsByDay: (limitDays) =>
       db.getAllSync<{ dayKey: string; totalMl: number }>(
         `SELECT dayKey, SUM(amountMl) AS totalMl FROM water_log

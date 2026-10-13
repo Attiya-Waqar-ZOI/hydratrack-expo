@@ -4,6 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { AppState as RNAppState } from 'react-native';
 
+import { exportBackup, shouldAutoPrompt } from './backup';
 import {
   DayContextRow, FavoriteRow, LogRow, Profile, hydrateCustomBeverages, makeLog, store,
 } from './db';
@@ -205,6 +206,19 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     };
      
   }, [version, manualTemp, bump, stepsToday, stepBoost, refreshSteps, weatherAuto]);
+
+  // Auto-backup: once per launch, if the chosen period has passed and there
+  // is new data, pop the share sheet with a fresh backup file — saving it
+  // is then a single tap. (Expo Go offers no silent write outside the app.)
+  useEffect(() => {
+    const t = setTimeout(async () => {
+      if (!store.getProfile()) return;
+      if (await shouldAutoPrompt().catch(() => false)) {
+        exportBackup().catch(() => {});
+      }
+    }, 2500); // let the app settle first
+    return () => clearTimeout(t);
+  }, []);
 
   // Remembered weather setting: refresh today's context automatically on
   // launch and whenever the app comes back to the foreground on a new day —

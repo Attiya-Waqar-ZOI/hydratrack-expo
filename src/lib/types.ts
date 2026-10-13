@@ -42,6 +42,8 @@ export interface Store {
   getLog(id: string): LogRow | null;
   deleteLog(id: string): void;
   logsForDay(dayKey: string): LogRow[];
+  allLogs(): LogRow[];
+  allDayContexts(): DayContextRow[];
   totalsByDay(limitDays: number): { dayKey: string; totalMl: number }[];
   volumeCounts(sinceMs: number): VolumeCount[];
   getDayContext(dayKey: string): DayContextRow | null;
