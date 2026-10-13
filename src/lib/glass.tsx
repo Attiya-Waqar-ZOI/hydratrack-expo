@@ -54,9 +54,13 @@ function Bubble({ cx, delay, duration, scale }: {
   );
 }
 
+/// One stratum of the day's liquid: a drink's color and its share (0..1)
+/// of the total. Ordered top → bottom; the top layer is the latest drink.
+export interface GlassLayer { color: string; frac: number }
+
 export function GoalGlass({
   ml, fill, width = 72, ground = C.bg, startEmpty = false, fillMs = 1300,
-  waterColor = C.accent300,
+  waterColor = C.accent300, layers,
 }: {
   ml?: number;      // 1000..6000 → design's level mapping
   fill?: number;    // 0..1 direct fill; above 1 the glass overflows
@@ -64,7 +68,8 @@ export function GoalGlass({
   ground?: string;  // color of the surface the glass sits on
   startEmpty?: boolean; // begin drained and pour in on mount
   fillMs?: number;      // duration of that first pour
-  waterColor?: string;  // the liquid — one solid, uniform color (last drink)
+  waterColor?: string;  // the surface waves + top stratum (last drink)
+  layers?: GlassLayer[]; // stacked drink strata, top (latest) first
 }) {
   const scale = width / VW;
   const height = VH * scale;
@@ -152,6 +157,32 @@ export function GoalGlass({
             <Path d={wavePath(waveW, waveH / 3, waveH / 2, tallH)} fill={waterColor} />
           </Svg>
         </Animated.View>
+
+        {/* Drink strata: bands below the surface, each drink's share of the
+            day in its own color, latest drink on top (that one is simply
+            the wave fill itself, so bands start from the second layer). */}
+        {layers && layers.length > 1 && (() => {
+          const bodyH = Math.max(0, (102.5 - targetY) * scale);
+          let acc = layers[0].frac;
+          return layers.slice(1).map((L, i) => {
+            const top = acc * bodyH;
+            const isLast = i === layers.length - 2;
+            // The bottom band overshoots into the mask so rounding never
+            // leaves a sliver of the top color peeking at the base.
+            const h = isLast ? bodyH - top + waveH : L.frac * bodyH + 1;
+            acc += L.frac;
+            return (
+              <View
+                key={i}
+                style={{
+                  position: 'absolute', left: 0, top,
+                  width, height: h,
+                  backgroundColor: L.color,
+                }}
+              />
+            );
+          });
+        })()}
       </Animated.View>
 
       {/* Bubbles rising through the water */}

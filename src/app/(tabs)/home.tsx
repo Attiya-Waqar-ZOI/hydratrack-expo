@@ -62,10 +62,24 @@ export default function Home() {
       : 'Could not read the weather — check location permission');
   };
 
-  // The glass wears the color of the LAST drink logged today: coffee turns
-  // it brown, juice orange… water brings back the classic blue.
-  const lastLog = app.todayLogs[app.todayLogs.length - 1];
-  const mix = lastLog ? beverageById(lastLog.beverageId).color : null;
+  // The glass is a stratified stack of the day's drinks: each one a band of
+  // its own color sized by its share of the total, latest drink on top (the
+  // waves take that top color). Alcohol subtracts volume but adds no band.
+  const positives = app.todayLogs.filter((l) => l.amountMl > 0);
+  const totalPos = positives.reduce((sum, l) => sum + l.amountMl, 0);
+  const layers = (() => {
+    if (totalPos <= 0) return undefined;
+    const out: { color: string; frac: number }[] = [];
+    for (const l of [...positives].reverse()) { // newest first = top first
+      const color = beverageById(l.beverageId).color;
+      const frac = l.amountMl / totalPos;
+      const prev = out[out.length - 1];
+      if (prev && prev.color === color) prev.frac += frac; // merge same-color neighbors
+      else out.push({ color, frac });
+    }
+    return out;
+  })();
+  const mix = layers?.[0].color ?? null;
   const recent = [...app.todayLogs].reverse().slice(0, 3);
 
   return (
@@ -95,6 +109,7 @@ export default function Home() {
             <GoalGlass
               fill={progress} width={104} ground={C.surface}
               waterColor={mix ?? C.accent300}
+              layers={layers}
             />
           </View>
         </View>

@@ -25,10 +25,12 @@ export default function History() {
   const goal = app.profile?.dailyGoalMl ?? 1;
   const useOz = app.profile?.unit === 'oz';
   const [selected, setSelected] = useState<string>(todayKey());
+  // 0 = this month, -1 = last month… browse back through older history.
+  const [monthOff, setMonthOff] = useState(0);
 
   // app.version in deps: recompute after every log change.
   const totals = useMemo(
-    () => new Map(store.totalsByDay(190).map((t) => [t.dayKey, t.totalMl])),
+    () => new Map(store.totalsByDay(1500).map((t) => [t.dayKey, t.totalMl])),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [app.version],
   );
@@ -42,10 +44,12 @@ export default function History() {
   });
   const hit = week.filter((d) => pctOf(todayKey(d)) >= 1).length;
 
-  // Current calendar month, Monday-start offset.
+  // Shown calendar month (current + monthOff), Monday-start offset.
   const now = new Date();
-  const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
-  const lead = (new Date(now.getFullYear(), now.getMonth(), 1).getDay() + 6) % 7;
+  const shown = new Date(now.getFullYear(), now.getMonth() + monthOff, 1);
+  const daysInMonth = new Date(shown.getFullYear(), shown.getMonth() + 1, 0).getDate();
+  const lead = (shown.getDay() + 6) % 7;
+  const monthTitle = `${MONTHS[shown.getMonth()]}${shown.getFullYear() !== now.getFullYear() ? ` ${shown.getFullYear()}` : ''}`;
 
   const tierFill = (p: number, future: boolean) => {
     if (future || p <= 0) return C.bg;
@@ -101,9 +105,24 @@ export default function History() {
           </View>
         </View>
 
-        {/* Month grid */}
+        {/* Month grid — ‹ › browse into older months */}
         <View style={s.card}>
-          <Text style={s.section}>{MONTHS[now.getMonth()]}</Text>
+          <View style={s.monthHead}>
+            <Text style={[s.section, { marginBottom: 0 }]}>{monthTitle}</Text>
+            <View style={{ flexDirection: 'row', gap: 8 }}>
+              <Pressable onPress={() => setMonthOff((m) => m - 1)} style={s.navBtn} hitSlop={8}>
+                <Text style={s.navTxt}>‹</Text>
+              </Pressable>
+              <Pressable
+                onPress={() => setMonthOff((m) => Math.min(0, m + 1))}
+                style={[s.navBtn, monthOff === 0 && { opacity: 0.3 }]}
+                disabled={monthOff === 0}
+                hitSlop={8}
+              >
+                <Text style={s.navTxt}>›</Text>
+              </Pressable>
+            </View>
+          </View>
           <View style={s.dowRow}>
             {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((l, i) => (
               <Text key={i} style={s.dow}>{l}</Text>
@@ -115,7 +134,7 @@ export default function History() {
             ))}
             {Array.from({ length: daysInMonth }, (_, i) => {
               const n = i + 1;
-              const d = new Date(now.getFullYear(), now.getMonth(), n);
+              const d = new Date(shown.getFullYear(), shown.getMonth(), n);
               const key = todayKey(d);
               const future = d > now;
               return (
@@ -225,6 +244,15 @@ const s = StyleSheet.create({
   baseline: { height: 1, width: '100%', backgroundColor: C.text },
   barDay: { marginTop: 7, fontFamily: F.body, fontSize: 13.5, color: C.muted },
   section: { fontFamily: F.heading, fontSize: 18, letterSpacing: -0.2, color: C.text, marginBottom: 10 },
+  monthHead: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    marginBottom: 10,
+  },
+  navBtn: {
+    width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center',
+    borderWidth: 1, borderColor: C.divider,
+  },
+  navTxt: { fontFamily: F.heading, fontSize: 17, color: C.text, marginTop: -2 },
   dowRow: { flexDirection: 'row', marginBottom: 6 },
   dow: { width: '14.28%', textAlign: 'center', fontFamily: F.body, fontSize: 11, color: C.faint },
   monthGrid: { flexDirection: 'row', flexWrap: 'wrap' },
