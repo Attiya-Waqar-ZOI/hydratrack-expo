@@ -40,7 +40,9 @@ export function drinkStats(days = 21): DrinkStat[] {
     .sort((a, b) => b.uses - a.uses);
 }
 
-export function makeLog(volumeMl: number, beverage: Beverage, at?: Date): LogRow {
+export function makeLog(
+  volumeMl: number, beverage: Beverage, at?: Date, place: string | null = null,
+): LogRow {
   const when = at ?? new Date();
   return {
     id: `${when.getTime()}_${Math.random().toString(36).slice(2, 8)}`,
@@ -49,6 +51,7 @@ export function makeLog(volumeMl: number, beverage: Beverage, at?: Date): LogRow
     beverageId: beverage.id,
     loggedAt: when.getTime(),
     dayKey: todayKey(when),
+    place,
   };
 }
 

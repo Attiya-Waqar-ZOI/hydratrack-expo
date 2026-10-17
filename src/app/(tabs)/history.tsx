@@ -27,6 +27,8 @@ export default function History() {
   const [selected, setSelected] = useState<string>(todayKey());
   // 0 = this month, -1 = last month… browse back through older history.
   const [monthOff, setMonthOff] = useState(0);
+  // 0 = the seven days ending today, -1 = the seven before that…
+  const [weekOff, setWeekOff] = useState(0);
 
   // app.version in deps: recompute after every log change.
   const totals = useMemo(
@@ -36,13 +38,28 @@ export default function History() {
   );
   const pctOf = (key: string) => (totals.get(key) ?? 0) / goal;
 
-  // Last seven days, today last.
+  // Shown seven-day window (ends today when weekOff is 0), oldest first.
   const week = Array.from({ length: 7 }, (_, i) => {
     const d = new Date();
-    d.setDate(d.getDate() - (6 - i));
+    d.setDate(d.getDate() - (6 - i) + weekOff * 7);
     return d;
   });
-  const hit = week.filter((d) => pctOf(todayKey(d)) >= 1).length;
+  // Headline always talks about the actual last seven days.
+  const hit = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    return d;
+  }).filter((d) => pctOf(todayKey(d)) >= 1).length;
+  const weekTitle = (() => {
+    if (weekOff === 0) return 'Last 7 days';
+    const a = week[0];
+    const b = week[6];
+    const mon = (d: Date) => MONTHS[d.getMonth()].slice(0, 3);
+    const yr = b.getFullYear() !== new Date().getFullYear() ? ` ${b.getFullYear()}` : '';
+    return a.getMonth() === b.getMonth()
+      ? `${a.getDate()}–${b.getDate()} ${mon(b)}${yr}`
+      : `${a.getDate()} ${mon(a)} – ${b.getDate()} ${mon(b)}${yr}`;
+  })();
 
   // Shown calendar month (current + monthOff), Monday-start offset.
   const now = new Date();
@@ -70,8 +87,24 @@ export default function History() {
           </Text>
         </View>
 
-        {/* Week bars */}
+        {/* Week bars — ‹ › browse into older weeks */}
         <View style={s.card}>
+          <View style={s.monthHead}>
+            <Text style={[s.section, { marginBottom: 0 }]}>{weekTitle}</Text>
+            <View style={{ flexDirection: 'row', gap: 8 }}>
+              <Pressable onPress={() => setWeekOff((w) => w - 1)} style={s.navBtn} hitSlop={8}>
+                <Text style={s.navTxt}>‹</Text>
+              </Pressable>
+              <Pressable
+                onPress={() => setWeekOff((w) => Math.min(0, w + 1))}
+                style={[s.navBtn, weekOff === 0 && { opacity: 0.3 }]}
+                disabled={weekOff === 0}
+                hitSlop={8}
+              >
+                <Text style={s.navTxt}>›</Text>
+              </Pressable>
+            </View>
+          </View>
           <View style={s.chart}>
             {/* Dashed goal line */}
             <View style={[s.goalDash, { bottom: LABEL_ZONE + BAR_MAX - 1 }]} pointerEvents="none">
@@ -207,12 +240,21 @@ function DayJournal({ dayKey, useOz }: { dayKey: string; useOz: boolean }) {
         {[...logs].reverse().map((l) => {
           const t = new Date(l.loggedAt);
           const b = beverageById(l.beverageId);
+          // Detail line: raw volume when it differs from what counts,
+          // caffeine, and where the drink was logged.
+          const caffeine = Math.round((l.volumeMl / 100) * b.caffeinePer100);
+          const sub = [
+            l.volumeMl !== l.amountMl ? `${fmtVol(l.volumeMl, useOz)} drunk` : null,
+            caffeine > 0 ? `${caffeine} mg caffeine` : null,
+            l.place ?? ctx?.place ?? null,
+          ].filter(Boolean).join(' · ');
           return (
             <LogRow
               key={l.id}
               name={`${b.emoji} ${b.name}`}
               time={`${String(t.getHours()).padStart(2, '0')}:${String(t.getMinutes()).padStart(2, '0')}`}
               amount={fmtSigned(l.amountMl, useOz)}
+              sub={sub || null}
               onPress={() => router.push({ pathname: '/edit-log', params: { id: l.id } })}
             />
           );

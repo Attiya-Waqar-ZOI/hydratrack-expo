@@ -108,7 +108,8 @@ export async function restoreBackup(): Promise<RestoreResult | 'cancelled'> {
     out.profileApplied = true;
   }
   for (const l of data.logs) {
-    if (!store.getLog(l.id)) { store.addLog(l); out.logs++; }
+    // Backups from before the place column simply have none.
+    if (!store.getLog(l.id)) { store.addLog({ ...l, place: l.place ?? null }); out.logs++; }
   }
   const haveCustom = new Set(store.customBeverages().map((c) => c.id));
   for (const c of data.customBeverages ?? []) {

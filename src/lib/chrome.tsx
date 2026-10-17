@@ -24,12 +24,17 @@ export function clock12(min: number): string {
 
 /// Divider-ruled drink row: name · time · ±amount. With onPress it becomes
 /// tappable (opens the edit sheet) and shows a chevron.
-export function LogRow({ name, time, amount, onPress }: {
-  name: string; time: string; amount: string; onPress?: () => void;
+export function LogRow({ name, time, amount, sub, onPress }: {
+  name: string; time: string; amount: string;
+  sub?: string | null; // quiet detail line: location, caffeine, raw volume…
+  onPress?: () => void;
 }) {
   const body = (
     <>
-      <Text style={st.logName} numberOfLines={1}>{name}</Text>
+      <View style={{ flexShrink: 1 }}>
+        <Text style={st.logName} numberOfLines={1}>{name}</Text>
+        {!!sub && <Text style={st.logSub} numberOfLines={1}>{sub}</Text>}
+      </View>
       <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 12 }}>
         <Text style={st.logTime}>{time}</Text>
         <Text style={[st.logAmt, amount.startsWith('−') && { color: C.accent2 }]}>{amount}</Text>
@@ -84,10 +89,11 @@ const st = StyleSheet.create({
     backgroundColor: C.accent, marginLeft: 26,
   },
   logRow: {
-    flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between',
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     gap: 12, paddingVertical: 9, borderBottomWidth: 1, borderBottomColor: C.divider,
   },
   logName: { fontFamily: F.body, fontSize: 16, color: C.text, flexShrink: 1 },
+  logSub: { fontFamily: F.body, fontSize: 12.5, color: C.muted, marginTop: 1 },
   logTime: { fontFamily: F.body, fontSize: 14, color: C.faint },
   logAmt: { fontFamily: F.heading, fontSize: 16, color: C.text },
   chevron: { fontFamily: F.body, fontSize: 17, color: C.faint },

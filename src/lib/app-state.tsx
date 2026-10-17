@@ -133,7 +133,9 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       refresh: bump,
       saveProfile: (p) => { store.saveProfile(p); bump(); },
       addDrink: (volumeMl, beverage, at) => {
-        const log = makeLog(volumeMl, beverage, at);
+        // Stamp the day's detected location onto the log, so history shows
+        // where each drink happened (null when weather/location is off).
+        const log = makeLog(volumeMl, beverage, at, dayContext?.place ?? null);
         store.addLog(log); bump(); return log.id;
       },
       updateDrink: (id, volumeMl, beverage, at) => {
@@ -143,6 +145,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
           beverageId: beverage.id,
           loggedAt: at.getTime(),
           dayKey: todayKey(at),
+          place: store.getLog(id)?.place ?? null, // edits keep where it was logged
         });
         bump();
       },

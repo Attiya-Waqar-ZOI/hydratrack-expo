@@ -12,6 +12,9 @@ export interface Profile {
 export interface LogRow {
   id: string; amountMl: number; volumeMl: number; beverageId: string;
   loggedAt: number; dayKey: string;
+  // Where the drink was logged (city, country) — stamped from the day's
+  // detected location at log time; null when location is off/unknown.
+  place: string | null;
 }
 
 export interface DayContextRow {

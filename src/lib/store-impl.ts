@@ -19,7 +19,7 @@ export function createStore(): Store {
     );
     CREATE TABLE IF NOT EXISTS water_log (
       id TEXT PRIMARY KEY, amountMl INTEGER, volumeMl INTEGER,
-      beverageId TEXT, loggedAt INTEGER, dayKey TEXT
+      beverageId TEXT, loggedAt INTEGER, dayKey TEXT, place TEXT
     );
     CREATE INDEX IF NOT EXISTS idx_log_day ON water_log(dayKey);
     CREATE TABLE IF NOT EXISTS day_context (
@@ -33,6 +33,8 @@ export function createStore(): Store {
       id TEXT PRIMARY KEY, beverageId TEXT, volumeMl INTEGER
     );
   `);
+  // Databases created before the place column existed need it added once.
+  try { db.execSync('ALTER TABLE water_log ADD COLUMN place TEXT'); } catch { /* already there */ }
   return {
     getProfile: () =>
       db.getFirstSync<Profile>('SELECT * FROM profile WHERE id = 1') ?? null,
@@ -50,13 +52,13 @@ export function createStore(): Store {
       db.execSync('DELETE FROM profile; DELETE FROM water_log; DELETE FROM day_context; DELETE FROM custom_beverage; DELETE FROM favorite_drink;'),
     addLog: (l) =>
       db.runSync(
-        'INSERT INTO water_log (id,amountMl,volumeMl,beverageId,loggedAt,dayKey) VALUES (?,?,?,?,?,?)',
-        [l.id, l.amountMl, l.volumeMl, l.beverageId, l.loggedAt, l.dayKey],
+        'INSERT INTO water_log (id,amountMl,volumeMl,beverageId,loggedAt,dayKey,place) VALUES (?,?,?,?,?,?,?)',
+        [l.id, l.amountMl, l.volumeMl, l.beverageId, l.loggedAt, l.dayKey, l.place ?? null],
       ),
     updateLog: (l) =>
       db.runSync(
-        'UPDATE water_log SET amountMl=?, volumeMl=?, beverageId=?, loggedAt=?, dayKey=? WHERE id=?',
-        [l.amountMl, l.volumeMl, l.beverageId, l.loggedAt, l.dayKey, l.id],
+        'UPDATE water_log SET amountMl=?, volumeMl=?, beverageId=?, loggedAt=?, dayKey=?, place=? WHERE id=?',
+        [l.amountMl, l.volumeMl, l.beverageId, l.loggedAt, l.dayKey, l.place ?? null, l.id],
       ),
     getLog: (id) =>
       db.getFirstSync<LogRow>('SELECT * FROM water_log WHERE id = ?', [id]) ?? null,

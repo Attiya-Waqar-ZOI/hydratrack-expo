@@ -4,14 +4,15 @@
 // scheduled times as quiet chips.
 import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { autoGoal, useApp } from '@/lib/app-state';
 import { AppHeader, clock12 } from '@/lib/chrome';
 import {
-  ACTIVITY_LABELS, ActivityLevel, Climate, GENDER_LABELS, Gender, fmtVol,
+  ACTIVITY_LABELS, ActivityLevel, Climate, GENDER_LABELS, Gender, fmtVol, todayKey,
 } from '@/lib/engines';
+import { exportExcel } from '@/lib/excel';
 import {
   DEFAULT_PREFS, ReminderPrefs, loadReminderPrefs, reminderTimes,
   saveReminderPrefs,
@@ -123,6 +124,9 @@ export default function You() {
 
         {/* Backup */}
         <BackupSettings />
+
+        {/* Excel export */}
+        <ExcelSettings />
 
         {/* Units */}
         <View style={[s.row, s.rowHead]}>
@@ -308,6 +312,125 @@ function BackupSettings() {
     </View>
   );
 }
+
+// Native date control; the web preview falls back to a YYYY-MM-DD input.
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const DateTimePicker = Platform.OS === 'web' ? null : require('@react-native-community/datetimepicker').default;
+
+/// Structured Excel of any date range: a Drinks sheet (every log with time,
+/// location, caffeine) and a Daily totals sheet (total vs goal per day).
+function ExcelSettings() {
+  const [start, setStart] = useState(() => {
+    const d = new Date(); d.setDate(d.getDate() - 29); return d;
+  });
+  const [end, setEnd] = useState(() => new Date());
+  const [busy, setBusy] = useState(false);
+
+  const doExport = async () => {
+    if (busy) return;
+    if (todayKey(start) > todayKey(end)) {
+      showToast('The start date is after the end date');
+      return;
+    }
+    setBusy(true);
+    try {
+      const ok = await exportExcel(todayKey(start), todayKey(end));
+      if (!ok) showToast('Sharing is not available here');
+    } catch {
+      showToast('Could not create the Excel file — try again');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <View style={s.row}>
+      <Text style={s.rowTitle}>Export to Excel</Text>
+      <Text style={s.rowSub}>Pick a period — every drink plus daily totals, as a spreadsheet</Text>
+      <View style={{ gap: 10, marginTop: 12 }}>
+        <DateField label="From" value={start} onChange={setStart} />
+        <DateField label="To" value={end} onChange={setEnd} />
+      </View>
+      <Pressable
+        onPress={doExport}
+        disabled={busy}
+        style={({ pressed }) => [s.backupBtn, { marginTop: 12, alignSelf: 'flex-start' },
+          pressed && { backgroundColor: C.accent100 }, busy && { opacity: 0.5 }]}
+      >
+        <Text style={s.backupBtnTxt}>Export .xlsx</Text>
+      </Pressable>
+    </View>
+  );
+}
+
+/// Labelled date row. iOS shows the compact system picker inline; Android
+/// opens the system dialog from a chip; web takes a typed YYYY-MM-DD.
+function DateField({ label, value, onChange }: {
+  label: string; value: Date; onChange: (d: Date) => void;
+}) {
+  const [open, setOpen] = useState(false); // Android dialog only
+  const [webText, setWebText] = useState(todayKey(value));
+
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+      <Text style={{ fontFamily: F.body, fontSize: 15, color: C.text }}>{label}</Text>
+      {Platform.OS === 'web' ? (
+        <TextInput
+          style={excelStyles.webDate}
+          value={webText}
+          onChangeText={setWebText}
+          placeholder="YYYY-MM-DD"
+          onBlur={() => {
+            const m = webText.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+            if (m) onChange(new Date(+m[1], +m[2] - 1, +m[3]));
+            else setWebText(todayKey(value));
+          }}
+        />
+      ) : Platform.OS === 'ios' ? (
+        <DateTimePicker
+          value={value}
+          mode="date"
+          display="compact"
+          themeVariant="light"
+          maximumDate={new Date()}
+          onChange={(_e: unknown, d?: Date) => { if (d) onChange(d); }}
+        />
+      ) : (
+        <>
+          <Pressable onPress={() => setOpen(true)} style={excelStyles.dateChip}>
+            <Text style={{ fontFamily: F.body, fontSize: 14.5, color: C.text }}>
+              {value.toLocaleDateString()}
+            </Text>
+          </Pressable>
+          {open && (
+            <DateTimePicker
+              value={value}
+              mode="date"
+              maximumDate={new Date()}
+              onChange={(e: { type: string }, d?: Date) => {
+                setOpen(false);
+                if (e.type !== 'dismissed' && d) onChange(d);
+              }}
+            />
+          )}
+        </>
+      )}
+    </View>
+  );
+}
+
+const excelStyles = StyleSheet.create({
+  webDate: {
+    fontFamily: F.body, fontSize: 15, color: C.text,
+    borderWidth: 1, borderColor: C.divider, borderRadius: 10,
+    paddingVertical: 8, paddingHorizontal: 12, backgroundColor: C.surface,
+    minWidth: 140, textAlign: 'center',
+  },
+  dateChip: {
+    borderWidth: 1, borderColor: C.divider, borderRadius: 10,
+    paddingVertical: 8, paddingHorizontal: 14, backgroundColor: C.surface,
+  },
+});
 
 /// One-time weather setting: allowed once, refreshes itself daily.
 function WeatherSettings() {
