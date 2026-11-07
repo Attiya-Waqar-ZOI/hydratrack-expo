@@ -82,7 +82,8 @@ export default function Onboarding() {
   const [goalSet, setGoalSet] = useState<number | null>(
     existing?.useCustomGoal ? (existing.customGoalMl || existing.dailyGoalMl) : null,
   );
-  const scroll = useRef<ScrollView>(null);
+  // RN 0.88: component types are no longer instance types — use ComponentRef.
+  const scroll = useRef<React.ComponentRef<typeof ScrollView>>(null);
 
   const bmi = useMemo(() => computeBmi(heightCm, weightKg), [heightCm, weightKg]);
   const recommended = useMemo(

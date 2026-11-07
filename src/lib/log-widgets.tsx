@@ -30,7 +30,8 @@ export function AmountField({ ml, onChange, useOz, usualMl }: {
   usualMl?: number | null; // the drink's most-logged size, shown as a chip
 }) {
   const [draft, setDraft] = useState<string | null>(null); // non-null while typing
-  const inputRef = useRef<TextInput>(null);
+  // RN 0.88: component types are no longer instance types — use ComponentRef.
+  const inputRef = useRef<React.ComponentRef<typeof TextInput>>(null);
 
   const commit = () => {
     if (draft != null) {

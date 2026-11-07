@@ -1,7 +1,6 @@
 // Tab dock — port of the design's bottom bar: four hand-drawn stroke icons
 // (drop, bars, calendar, person), a 2px accent underline on the active tab,
 // and a round accent + button in the center that opens the log sheet.
-import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { Tabs, router } from 'expo-router';
 import React from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
@@ -39,19 +38,24 @@ function TabButton({ route, active, onPress }: {
 
 type TabRoute = { key: string; name: string };
 
-function EditorialTabBar({ state, navigation }: BottomTabBarProps) {
+// SDK 58's expo-router hands the custom tab bar `navigateToTab` instead of
+// the react-navigation `navigation` object, so type the minimal shape we use.
+function EditorialTabBar({ state, navigateToTab }: {
+  state: { index: number; routes: TabRoute[] };
+  navigateToTab: (routeKey: string) => void;
+}) {
   const insets = useSafeAreaInsets();
   const routes = state.routes.filter((r: TabRoute) => r.name !== 'add-action');
   const activeName = state.routes[state.index]?.name;
-  const go = (name: string) => {
-    if (name !== activeName) navigation.navigate(name as never);
+  const go = (r: TabRoute) => {
+    if (r.name !== activeName) navigateToTab(r.key);
   };
   const left = routes.slice(0, 2);
   const right = routes.slice(2);
   return (
     <View style={[st.bar, { paddingBottom: Math.max(insets.bottom - 8, 0) }]}>
       {left.map((r: TabRoute) => (
-        <TabButton key={r.key} route={r.name} active={activeName === r.name} onPress={() => go(r.name)} />
+        <TabButton key={r.key} route={r.name} active={activeName === r.name} onPress={() => go(r)} />
       ))}
       <Pressable
         onPress={() => router.push('/add')}
@@ -63,7 +67,7 @@ function EditorialTabBar({ state, navigation }: BottomTabBarProps) {
         </Svg>
       </Pressable>
       {right.map((r: TabRoute) => (
-        <TabButton key={r.key} route={r.name} active={activeName === r.name} onPress={() => go(r.name)} />
+        <TabButton key={r.key} route={r.name} active={activeName === r.name} onPress={() => go(r)} />
       ))}
     </View>
   );

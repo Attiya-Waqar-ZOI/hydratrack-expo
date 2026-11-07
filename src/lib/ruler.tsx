@@ -28,7 +28,7 @@ function setRulerDragging(dragging: boolean) {
 }
 
 /// Drop-in ScrollView that freezes while any Ruler is being touched.
-export const RulerScrollView = React.forwardRef<ScrollView, ScrollViewProps>(
+export const RulerScrollView = React.forwardRef<React.ComponentRef<typeof ScrollView>, ScrollViewProps>(
   function RulerScrollView({ scrollEnabled, ...props }, ref) {
     const [locked, setLocked] = useState(false);
     useEffect(() => {
